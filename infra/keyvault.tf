@@ -18,10 +18,8 @@ locals {
   # Key Vault rejects /31 and /32 prefixes: single addresses go in bare.
   kv_ip_rules = [for c in var.admin_ip_cidrs : trimsuffix(c, "/32")]
 
-  # Filled in by the network change: snet-aks and snet-db, each with the
-  # Microsoft.KeyVault service endpoint. Until then only the admin IP and
-  # trusted Azure services get through.
-  kv_subnet_ids = []
+  # Both subnets have the Microsoft.KeyVault service endpoint (network.tf)
+  kv_subnet_ids = [azurerm_subnet.aks.id, azurerm_subnet.db.id]
 }
 
 resource "azurerm_key_vault" "main" {

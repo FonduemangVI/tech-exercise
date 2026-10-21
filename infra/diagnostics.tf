@@ -14,9 +14,14 @@ locals {
     # To add as they are built:
     # acr     = azurerm_container_registry.main.id
     # blob    = "${azurerm_storage_account.backup.id}/blobServices/default"
-    # nsg_db  = azurerm_network_security_group.db.id
-    # nsg_aks = azurerm_network_security_group.aks.id
     # pip_vm  = azurerm_public_ip.mongo.id
+  }
+
+  # NSGs have no metrics and no documented category group, so they get
+  # their own setting with explicit categories (resource below).
+  diag_nsgs = {
+    nsg_db  = azurerm_network_security_group.db.id
+    nsg_aks = azurerm_network_security_group.aks.id
   }
 }
 
@@ -33,6 +38,24 @@ resource "azurerm_monitor_diagnostic_setting" "this" {
 
   enabled_metric {
     category = "AllMetrics"
+  }
+}
+
+# Which NSG rules applied to which NIC, and how often each rule matched
+# (rule counters show hits on the open SSH rule, W4).
+resource "azurerm_monitor_diagnostic_setting" "nsg" {
+  for_each = local.diag_nsgs
+
+  name                       = "${local.prefix}-diag"
+  target_resource_id         = each.value
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+
+  enabled_log {
+    category = "NetworkSecurityGroupEvent"
+  }
+
+  enabled_log {
+    category = "NetworkSecurityGroupRuleCounter"
   }
 }
 
