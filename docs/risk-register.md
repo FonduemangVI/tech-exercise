@@ -39,4 +39,4 @@ Each suppression is an inline `#trivy:ignore:<ID>` comment directly above the re
 | OPS-1 | Trivy | AZU-0012 (expires 2026-12-31) | `infra/bootstrap/main.tf` |
 | W4 | Trivy | AZU-0047, AZU-0050 | `infra/network.tf` |
 | R5, R18 (by design) | Trivy | AZU-0047: HTTP and HTTPS from the internet to the AKS subnet, the public entry for the web app (80 redirects to 443) | `infra/network.tf` |
-| W6 | Trivy | _to be added_ | `infra/storage.tf` |
+| W6 | Trivy | AZU-0007 (container public access), AZU-0012 (storage network allows all) | `infra/storage.tf` |

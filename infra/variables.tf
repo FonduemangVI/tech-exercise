@@ -56,3 +56,47 @@ variable "admin_ip_cidrs" {
     error_message = "admin_ip_cidrs must hold at least one valid CIDR, e.g. 203.0.113.10/32."
   }
 }
+
+variable "vm_ssh_public_key" {
+  description = "SSH public key for the Mongo VM admin user. Not a secret; password login is disabled."
+  type        = string
+
+  validation {
+    condition     = can(regex("^(ssh-ed25519|ssh-rsa|ecdsa-sha2-nistp256) ", var.vm_ssh_public_key))
+    error_message = "vm_ssh_public_key must be an OpenSSH public key."
+  }
+}
+
+variable "vm_admin_username" {
+  description = "Admin user on the Mongo VM."
+  type        = string
+  default     = "azureuser"
+}
+
+variable "vm_size" {
+  description = "Mongo VM size. B2s (2 vCPU) plus one 2 vCPU AKS node fits a 4 vCPU quota."
+  type        = string
+  default     = "Standard_B2s"
+}
+
+variable "vm_image" {
+  description = "W1: deliberately outdated OS image (Ubuntu 20.04, standard support ended May 2025)."
+  type = object({
+    publisher = string
+    offer     = string
+    sku       = string
+    version   = string
+  })
+  default = {
+    publisher = "Canonical"
+    offer     = "0001-com-ubuntu-server-focal"
+    sku       = "20_04-lts-gen2"
+    version   = "latest"
+  }
+}
+
+variable "mongo_version" {
+  description = "W2: deliberately outdated MongoDB release series (6.0, end of life 31 Jul 2025)."
+  type        = string
+  default     = "6.0"
+}

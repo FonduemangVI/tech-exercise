@@ -11,10 +11,14 @@ locals {
     # Key Vault AuditEvent: every secret read and write, with the caller
     kv = azurerm_key_vault.main.id
 
+    # Blob reads and writes, including anonymous reads of the backups (W6)
+    blob = "${azurerm_storage_account.backup.id}/blobServices/default"
+
+    # Mongo VM public IP (DDoS notifications and metrics)
+    pip_vm = azurerm_public_ip.mongo.id
+
     # To add as they are built:
-    # acr     = azurerm_container_registry.main.id
-    # blob    = "${azurerm_storage_account.backup.id}/blobServices/default"
-    # pip_vm  = azurerm_public_ip.mongo.id
+    # acr = azurerm_container_registry.main.id
   }
 
   # NSGs have no metrics and no documented category group, so they get

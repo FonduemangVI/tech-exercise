@@ -13,6 +13,9 @@
 # secret so it is masked in public run logs. Set ADMIN_IP_CIDRS before
 # running, as an HCL list, e.g. '["203.0.113.10/32"]'. If unset, the
 # current public IP is detected and used as a /32.
+#
+# VM_SSH_PUBLIC_KEY defaults to ~/.ssh/wiz-exercise.pub (a key used only
+# for this exercise). A public key is not a secret.
 
 set -euo pipefail
 
@@ -38,6 +41,7 @@ LOCATION="$(tf_out '.location.value.name')"
 LOCATION_SHORT="$(tf_out '.location.value.short')"
 OWNER_TAG="$(tf_out '.owner_tag.value')"
 ADMIN_OBJECT_ID="$(tf_out '.admin_object_id.value')"
+VM_SSH_PUBLIC_KEY="${VM_SSH_PUBLIC_KEY:-$(cat "$HOME/.ssh/wiz-exercise.pub")}"
 
 if [[ -z "${ADMIN_IP_CIDRS:-}" ]]; then
   MY_IP="$(curl -fsS https://api.ipify.org)"
@@ -88,6 +92,7 @@ gh variable set AZURE_LOCATION          --repo "$REPO" --body "$LOCATION"
 gh variable set AZURE_LOCATION_SHORT    --repo "$REPO" --body "$LOCATION_SHORT"
 gh variable set OWNER_TAG               --repo "$REPO" --body "$OWNER_TAG"
 gh variable set ADMIN_OBJECT_ID         --repo "$REPO" --body "$ADMIN_OBJECT_ID"
+gh variable set VM_SSH_PUBLIC_KEY       --repo "$REPO" --body "$VM_SSH_PUBLIC_KEY"
 
 echo "Setting repository secrets"
 gh secret set ADMIN_IP_CIDRS --repo "$REPO" --body "$ADMIN_IP_CIDRS"

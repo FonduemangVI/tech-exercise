@@ -96,6 +96,7 @@ jobs:
       TF_VAR_owner_tag: ${{ vars.OWNER_TAG }}
       TF_VAR_github_repository: ${{ github.repository }}
       TF_VAR_admin_object_id: ${{ vars.ADMIN_OBJECT_ID }}
+      TF_VAR_vm_ssh_public_key: ${{ vars.VM_SSH_PUBLIC_KEY }}
       TF_VAR_admin_ip_cidrs: ${{ secrets.ADMIN_IP_CIDRS }} # secret: keeps the IP out of public logs
       TFSTATE_RG: ${{ vars.TFSTATE_RESOURCE_GROUP }}
       TFSTATE_SA: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
@@ -154,6 +155,7 @@ jobs:
       TF_VAR_owner_tag: ${{ vars.OWNER_TAG }}
       TF_VAR_github_repository: ${{ github.repository }}
       TF_VAR_admin_object_id: ${{ vars.ADMIN_OBJECT_ID }}
+      TF_VAR_vm_ssh_public_key: ${{ vars.VM_SSH_PUBLIC_KEY }}
       TF_VAR_admin_ip_cidrs: ${{ secrets.ADMIN_IP_CIDRS }} # secret: keeps the IP out of public logs
       TFSTATE_RG: ${{ vars.TFSTATE_RESOURCE_GROUP }}
       TFSTATE_SA: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
