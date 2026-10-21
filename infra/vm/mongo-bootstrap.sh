@@ -8,7 +8,7 @@
 # tasky's connection string stays valid.
 set -euo pipefail
 
-# shellcheck source=kv.sh
+# shellcheck source-path=SCRIPTDIR source=kv.sh
 . /usr/local/lib/kv.sh
 
 log() { echo "[mongo-bootstrap] $*"; }

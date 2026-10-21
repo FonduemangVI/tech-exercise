@@ -5,7 +5,7 @@
 # it is never written to disk or shown in the process list.
 set -euo pipefail
 
-# shellcheck source=kv.sh
+# shellcheck source-path=SCRIPTDIR source=kv.sh
 . /usr/local/lib/kv.sh
 
 ts="$(date -u +%Y%m%dT%H%M%SZ)"

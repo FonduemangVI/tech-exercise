@@ -27,3 +27,23 @@ output "backup_list_url" {
   description = "W6: anonymous listing of the backups container"
   value       = "https://${azurerm_storage_account.backup.name}.blob.core.windows.net/${azurerm_storage_container.backups.name}?restype=container&comp=list"
 }
+
+output "aks_name" {
+  value = azurerm_kubernetes_cluster.main.name
+}
+
+output "aks_oidc_issuer_url" {
+  value = azurerm_kubernetes_cluster.main.oidc_issuer_url
+}
+
+output "acr_login_server" {
+  value = azurerm_container_registry.main.login_server
+}
+
+output "workload_identity_client_ids" {
+  description = "Client IDs for the service account annotations (azure.workload.identity/client-id). Not secrets."
+  value = {
+    flux  = azurerm_user_assigned_identity.flux.client_id
+    tasky = azurerm_user_assigned_identity.tasky.client_id
+  }
+}

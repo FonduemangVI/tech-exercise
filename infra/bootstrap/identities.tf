@@ -77,8 +77,31 @@ data "azurerm_role_definition" "assignable" {
   scope = data.azurerm_subscription.current.id
 }
 
+# Custom role for `az aks command invoke` (app deploys). The only built-in
+# role with runCommand is the AKS Cluster Admin Role, which also lists the
+# cluster admin credential and lacks commandResults/read. Commands run as
+# the caller, so Kubernetes RBAC still limits what they can do.
+resource "azurerm_role_definition" "aks_command_invoke" {
+  name        = var.aks_command_invoke_role_name
+  scope       = data.azurerm_subscription.current.id
+  description = "Run az aks command invoke on AKS clusters. Commands run as the caller, so Kubernetes RBAC still applies."
+
+  permissions {
+    actions = [
+      "Microsoft.ContainerService/managedClusters/read",
+      "Microsoft.ContainerService/managedClusters/runCommand/action",
+      "Microsoft.ContainerService/managedClusters/commandResults/read",
+    ]
+  }
+
+  assignable_scopes = [data.azurerm_subscription.current.id]
+}
+
 locals {
-  assignable_role_guids = join(", ", [for r in data.azurerm_role_definition.assignable : basename(r.id)])
+  assignable_role_guids = join(", ", concat(
+    [for r in data.azurerm_role_definition.assignable : basename(r.id)],
+    [azurerm_role_definition.aks_command_invoke.role_definition_id],
+  ))
 
   rbac_condition = <<-EOT
     (

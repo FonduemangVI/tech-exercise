@@ -52,6 +52,14 @@ jobs:
             echo "::endgroup::"
           done
 
+      # Scripts that run on the Mongo VM (and the repo scripts). A broken VM
+      # script replaces the VM on apply, so it is caught here first.
+      # shellcheck is preinstalled on GitHub-hosted Ubuntu runners.
+      - name: ShellCheck
+        run: |
+          shellcheck --version
+          shellcheck -x -s bash infra/vm/*.sh scripts/*.sh
+
       # Installed from the release with checksum verification rather than a
       # third-party action, to keep the supply chain small.
       - name: Install Trivy
@@ -97,6 +105,8 @@ jobs:
       TF_VAR_github_repository: ${{ github.repository }}
       TF_VAR_admin_object_id: ${{ vars.ADMIN_OBJECT_ID }}
       TF_VAR_vm_ssh_public_key: ${{ vars.VM_SSH_PUBLIC_KEY }}
+      TF_VAR_github_pr_principal_id: ${{ vars.AZURE_PRINCIPAL_ID_PR }}
+      TF_VAR_github_app_principal_id: ${{ vars.AZURE_PRINCIPAL_ID_APP }}
       TF_VAR_admin_ip_cidrs: ${{ secrets.ADMIN_IP_CIDRS }} # secret: keeps the IP out of public logs
       TFSTATE_RG: ${{ vars.TFSTATE_RESOURCE_GROUP }}
       TFSTATE_SA: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
@@ -156,6 +166,8 @@ jobs:
       TF_VAR_github_repository: ${{ github.repository }}
       TF_VAR_admin_object_id: ${{ vars.ADMIN_OBJECT_ID }}
       TF_VAR_vm_ssh_public_key: ${{ vars.VM_SSH_PUBLIC_KEY }}
+      TF_VAR_github_pr_principal_id: ${{ vars.AZURE_PRINCIPAL_ID_PR }}
+      TF_VAR_github_app_principal_id: ${{ vars.AZURE_PRINCIPAL_ID_APP }}
       TF_VAR_admin_ip_cidrs: ${{ secrets.ADMIN_IP_CIDRS }} # secret: keeps the IP out of public logs
       TFSTATE_RG: ${{ vars.TFSTATE_RESOURCE_GROUP }}
       TFSTATE_SA: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
