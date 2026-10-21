@@ -1,6 +1,9 @@
 # In the pipeline, authentication comes from the environment:
 # ARM_USE_OIDC=true, ARM_CLIENT_ID and ARM_TENANT_ID (GitHub OIDC token,
 # no secrets). Locally, it falls back to the Azure CLI login.
+# Resource providers are registered once by infra/bootstrap (run as Owner);
+# azurerm 5.x registers none by default, so the pipelines never need
+# register rights.
 provider "azurerm" {
   features {
     key_vault {

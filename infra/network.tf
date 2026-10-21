@@ -31,7 +31,11 @@ resource "azurerm_subnet" "aks" {
   virtual_network_name            = azurerm_virtual_network.main.name
   address_prefixes                = [local.subnets.aks]
   default_outbound_access_enabled = false
-  service_endpoints               = ["Microsoft.KeyVault"] # tasky secrets via the CSI driver
+
+  # tasky secrets via the CSI driver
+  service_endpoint {
+    service = "Microsoft.KeyVault"
+  }
 }
 
 # Holds the API server's internal load balancer. AKS manages this subnet;
@@ -57,7 +61,11 @@ resource "azurerm_subnet" "db" {
   virtual_network_name            = azurerm_virtual_network.main.name
   address_prefixes                = [local.subnets.db]
   default_outbound_access_enabled = false
-  service_endpoints               = ["Microsoft.KeyVault"] # VM writes and reads its credentials
+
+  # VM writes and reads its credentials
+  service_endpoint {
+    service = "Microsoft.KeyVault"
+  }
 }
 
 # ---------------------------------------------------------------------------

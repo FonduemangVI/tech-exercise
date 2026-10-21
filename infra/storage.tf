@@ -18,8 +18,8 @@ resource "azurerm_storage_account" "backup" {
   https_traffic_only_enabled        = true
   shared_access_key_enabled         = false
   infrastructure_encryption_enabled = true
-  public_network_access_enabled     = true # W6: anonymous access from the internet
-  allow_nested_items_to_be_public   = true # W6: lets the container below be public
+  public_network_access             = "Enabled" # W6: anonymous access from the internet
+  allow_nested_items_to_be_public   = true      # W6: lets the container below be public
 
   blob_properties {
     delete_retention_policy {
