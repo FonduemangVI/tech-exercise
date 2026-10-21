@@ -1,0 +1,181 @@
+name: infra
+
+# Static checks run on every PR, with no path filter: a required status
+# check with a path filter would sit "pending" forever on PRs that do not
+# touch infra/, and block the merge.
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false # never cancel a running apply
+
+env:
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TERRAFORM_VERSION: "1.16.6"
+  TRIVY_VERSION: "0.76.0"
+
+jobs:
+  static:
+    name: Static checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive -diff infra
+
+      - name: Terraform validate
+        run: |
+          set -euo pipefail
+          for dir in infra/bootstrap infra; do
+            echo "::group::validate $dir"
+            terraform -chdir="$dir" init -backend=false
+            terraform -chdir="$dir" validate
+            echo "::endgroup::"
+          done
+
+      # Installed from the release with checksum verification rather than a
+      # third-party action, to keep the supply chain small.
+      - name: Install Trivy
+        run: |
+          set -euo pipefail
+          base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          checksums="trivy_${TRIVY_VERSION}_checksums.txt"
+          curl -fsSLO "$base/$tarball"
+          curl -fsSLO "$base/$checksums"
+          grep " ${tarball}$" "$checksums" | sha256sum -c -
+          tar -xzf "$tarball" trivy
+          sudo install -m 0755 trivy /usr/local/bin/trivy
+          trivy --version
+
+      # Fails on HIGH or CRITICAL. Deliberate weaknesses are suppressed only
+      # with inline ignores that reference docs/risk-register.md.
+      - name: Trivy IaC scan
+        run: trivy config --exit-code 1 --severity HIGH,CRITICAL infra
+
+  plan:
+    name: Plan
+    needs: static
+    # Skipped until the bootstrap has set the repo variables. Fork PRs cannot
+    # request an OIDC token, so only branches in this repo run a plan.
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.AZURE_CLIENT_ID_PR != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID_PR }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_location: ${{ vars.AZURE_LOCATION }}
+      TF_VAR_location_short: ${{ vars.AZURE_LOCATION_SHORT }}
+      TF_VAR_owner_tag: ${{ vars.OWNER_TAG }}
+      TF_VAR_github_repository: ${{ github.repository }}
+      TFSTATE_RG: ${{ vars.TFSTATE_RESOURCE_GROUP }}
+      TFSTATE_SA: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
+      TFSTATE_CONTAINER: ${{ vars.TFSTATE_CONTAINER }}
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=$TFSTATE_RG" \
+            -backend-config="storage_account_name=$TFSTATE_SA" \
+            -backend-config="container_name=$TFSTATE_CONTAINER"
+
+      - name: Terraform plan
+        run: |
+          set -euo pipefail
+          terraform plan -lock-timeout=5m -out=tfplan
+          {
+            echo "### Terraform plan"
+            echo '```'
+            terraform show -no-color tfplan
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    name: Apply
+    needs: static
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main' &&
+      vars.AZURE_CLIENT_ID_INFRA != ''
+    runs-on: ubuntu-latest
+    environment: prod-infra # required reviewer; only main can deploy
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ARM_USE_OIDC: "true"
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID_INFRA }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_location: ${{ vars.AZURE_LOCATION }}
+      TF_VAR_location_short: ${{ vars.AZURE_LOCATION_SHORT }}
+      TF_VAR_owner_tag: ${{ vars.OWNER_TAG }}
+      TF_VAR_github_repository: ${{ github.repository }}
+      TFSTATE_RG: ${{ vars.TFSTATE_RESOURCE_GROUP }}
+      TFSTATE_SA: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
+      TFSTATE_CONTAINER: ${{ vars.TFSTATE_CONTAINER }}
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@v4.0.1
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=$TFSTATE_RG" \
+            -backend-config="storage_account_name=$TFSTATE_SA" \
+            -backend-config="container_name=$TFSTATE_CONTAINER"
+
+      - name: Terraform plan
+        run: terraform plan -lock-timeout=5m -out=tfplan
+
+      - name: Terraform apply
+        run: terraform apply -lock-timeout=5m tfplan

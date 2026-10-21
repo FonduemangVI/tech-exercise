@@ -40,6 +40,8 @@ A two-tier web application on Azure:
 
 Both pipelines authenticate to Azure with OpenID Connect (workload identity federation). No client secrets are stored.
 
+Action dependencies are locked to verified commits in [`.github/workflows/actions.lock`](.github/workflows/actions.lock) (GitHub workflow dependency lockfile, public preview), generated with `gh actions-lock`. The `actions-lock` workflow fails any PR whose lockfile is missing or stale. To add or change an action, edit the workflow, run `gh actions-lock`, and commit both files.
+
 ## Deliberate weaknesses
 
 | ID | Weakness |

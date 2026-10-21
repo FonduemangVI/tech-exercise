@@ -21,6 +21,9 @@ terraform.rc
 *.tfvars.json
 !*.example.tfvars
 
+# Local backend settings: commit backend.example.hcl only
+backend.hcl
+
 # Keep the provider lock file (.terraform.lock.hcl) committed
 
 # ---------- Kubernetes ----------
