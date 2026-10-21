@@ -45,8 +45,14 @@ variable "owner_tag" {
   type        = string
 }
 
+variable "aks_command_invoke_role_name" {
+  description = "Name of the custom role for az aks command invoke. infra/ assigns it by this name."
+  type        = string
+  default     = "AKS Command Invoke (tech-exercise)"
+}
+
 variable "assignable_roles" {
-  description = "Roles the infra pipeline identity may assign. Anything else (Owner, User Access Administrator, RBAC Administrator) is blocked by the role assignment condition."
+  description = "Built-in roles the infra pipeline identity may assign (the custom command invoke role is added to the condition automatically). Anything else (Owner, User Access Administrator, RBAC Administrator) is blocked by the role assignment condition."
   type        = list(string)
   default = [
     "Contributor",

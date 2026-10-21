@@ -100,3 +100,31 @@ variable "mongo_version" {
   type        = string
   default     = "6.0"
 }
+
+variable "aks_node_size" {
+  description = "AKS node size. One 2 vCPU node plus the 2 vCPU Mongo VM fits a 4 vCPU quota."
+  type        = string
+  default     = "Standard_D2s_v5"
+}
+
+variable "kubernetes_version" {
+  description = "AKS version. null uses the region's default GA version at creation."
+  type        = string
+  default     = null
+}
+
+variable "aks_command_invoke_role_name" {
+  description = "Custom role created by infra/bootstrap for az aks command invoke."
+  type        = string
+  default     = "AKS Command Invoke (tech-exercise)"
+}
+
+variable "github_pr_principal_id" {
+  description = "Object ID of id-gh-pr (bootstrap output github_principal_ids.pr). Gets AcrPull for PR image builds."
+  type        = string
+}
+
+variable "github_app_principal_id" {
+  description = "Object ID of id-gh-app (bootstrap output github_principal_ids.app). Gets AcrPush and namespace-scoped AKS access."
+  type        = string
+}

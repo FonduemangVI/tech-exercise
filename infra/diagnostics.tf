@@ -17,8 +17,8 @@ locals {
     # Mongo VM public IP (DDoS notifications and metrics)
     pip_vm = azurerm_public_ip.mongo.id
 
-    # To add as they are built:
-    # acr = azurerm_container_registry.main.id
+    # Registry logins, pushes and pulls
+    acr = azurerm_container_registry.main.id
   }
 
   # NSGs have no metrics and no documented category group, so they get
@@ -63,5 +63,25 @@ resource "azurerm_monitor_diagnostic_setting" "nsg" {
   }
 }
 
-# AKS gets its own setting with explicit categories (added with the cluster):
-# allLogs would include kube-audit, which is very high volume.
+# AKS gets its own setting with explicit categories: allLogs would include
+# kube-audit (every read), which is very high volume for a 1 GB/day cap.
+#   kube-audit-admin  every change (create, update, delete), incl. RBAC and Secrets
+#   guard             Entra ID and Azure RBAC authorisation decisions
+#   kube-apiserver    API server logs
+resource "azurerm_monitor_diagnostic_setting" "aks" {
+  name                       = "${local.prefix}-diag"
+  target_resource_id         = azurerm_kubernetes_cluster.main.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+
+  enabled_log {
+    category = "kube-audit-admin"
+  }
+
+  enabled_log {
+    category = "guard"
+  }
+
+  enabled_log {
+    category = "kube-apiserver"
+  }
+}
