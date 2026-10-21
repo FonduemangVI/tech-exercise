@@ -1,9 +1,9 @@
 # W5: INTENTIONAL WEAKNESS, required by the brief ("container has
 # cluster-wide admin role"). See docs/risk-register.md.
 #
-# Applied once at bootstrap by an admin (scripts/bootstrap-cluster.sh), not
-# by app.yml: the app pipeline only has rights in the tasky namespace and
-# cannot create cluster-wide bindings.
+# Managed by Flux (kubernetes/apps/tasky/kustomization.yaml), not by app.yml:
+# the app pipeline only has rights in the tasky namespace and cannot create
+# cluster-wide bindings. Being in Git, the weakness is visible and reviewed.
 #
 # Fix: delete this binding; the app needs no Kubernetes API access at all.
 apiVersion: rbac.authorization.k8s.io/v1

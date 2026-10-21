@@ -12,7 +12,7 @@ on:
     branches: [main]
     paths:
       - "app/**"
-      - "k8s/apps/**"
+      - "kubernetes/apps/tasky/**"
       - ".github/workflows/app.yml"
   workflow_dispatch:
 
@@ -51,7 +51,7 @@ jobs:
       # W5 (cluster-admin binding) is reported as MEDIUM, below the gate,
       # and stays visible in the output on purpose.
       - name: Trivy Kubernetes manifest scan
-        run: trivy config --exit-code 1 --severity HIGH,CRITICAL k8s
+        run: trivy config --exit-code 1 --severity HIGH,CRITICAL kubernetes
 
   build:
     name: Build and scan image
@@ -175,7 +175,7 @@ jobs:
           vars='${IMAGE} ${TASKY_CLIENT_ID} ${KEY_VAULT_NAME} ${AZURE_TENANT_ID} ${APP_HOSTNAME}'
           for f in kustomization.yaml serviceaccount.yaml secretproviderclass.yaml \
                    deployment.yaml service.yaml httproute.yaml; do
-            envsubst "$vars" < "k8s/apps/tasky/$f" > "rendered/$f"
+            envsubst "$vars" < "kubernetes/apps/tasky/tasky/app/$f" > "rendered/$f"
           done
           if grep -n '\${' rendered/*.yaml; then
             echo "Unsubstituted variables left in the manifests" >&2

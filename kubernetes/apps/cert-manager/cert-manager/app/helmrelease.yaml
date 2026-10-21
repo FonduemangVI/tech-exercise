@@ -1,0 +1,22 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cert-manager
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: cert-manager
+  interval: 1h
+  values:
+    crds:
+      enabled: true
+    # All five images (controller, webhook, cainjector, acmesolver,
+    # startupapicheck) from ACR: <registry>/jetstack/cert-manager-<name>
+    imageRegistry: ${ACR_LOGIN_SERVER}
+    imageNamespace: jetstack
+    # HTTP-01 challenges are answered through a Gateway API HTTPRoute
+    config:
+      apiVersion: controller.config.cert-manager.io/v1alpha1
+      kind: ControllerConfiguration
+      enableGatewayAPI: true

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Sets the repository variables app.yml needs, from the infra/ outputs.
+# Sets the repository variables app.yml and scripts/bootstrap-flux.sh need,
+# from the infra/ outputs.
 # Run once after the first infra apply, from the repository root, with
 # infra/ initialised locally (terraform -chdir=infra init -backend-config=backend.hcl).
 #
@@ -17,6 +18,7 @@ AKS_NAME="$(tf_out '.aks_name.value')"
 AKS_RESOURCE_GROUP="$(tf_out '.resource_group_name.value')"
 KEY_VAULT_NAME="$(tf_out '.key_vault_name.value')"
 TASKY_CLIENT_ID="$(tf_out '.workload_identity_client_ids.value.tasky')"
+FLUX_CLIENT_ID="$(tf_out '.workload_identity_client_ids.value.flux')"
 LOCATION="$(gh variable get AZURE_LOCATION --repo "$REPO")"
 
 # DNS label on the Envoy load balancer IP. Must be unique in the region, so
@@ -36,5 +38,6 @@ set_var AKS_NAME "$AKS_NAME"
 set_var AKS_RESOURCE_GROUP "$AKS_RESOURCE_GROUP"
 set_var KEY_VAULT_NAME "$KEY_VAULT_NAME"
 set_var TASKY_CLIENT_ID "$TASKY_CLIENT_ID"
+set_var FLUX_CLIENT_ID "$FLUX_CLIENT_ID"
 set_var APP_DNS_LABEL "$APP_DNS_LABEL"
 set_var APP_HOSTNAME "$APP_HOSTNAME"

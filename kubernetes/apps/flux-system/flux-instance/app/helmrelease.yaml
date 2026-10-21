@@ -1,0 +1,59 @@
+---
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: flux-instance
+spec:
+  chartRef:
+    kind: OCIRepository
+    name: flux-instance
+  interval: 1h
+  values:
+    instance:
+      distribution:
+        # The version embedded in flux-operator 0.61.0. With no artifact set,
+        # the operator uses its built-in manifests: no download from ghcr.io.
+        version: "2.9.6"
+        registry: ${ACR_LOGIN_SERVER}/fluxcd
+        variant: upstream-alpine # required for a mirror registry
+        artifact: ""
+      cluster:
+        type: azure
+      # Three controllers only: nothing here needs notifications or image
+      # automation, and the single node has little memory to spare.
+      components:
+        - source-controller
+        - kustomize-controller
+        - helm-controller
+      sync:
+        kind: GitRepository
+        url: https://github.com/FonduemangVI/tech-exercise.git # public: no Git credentials
+        ref: refs/heads/main
+        path: kubernetes/flux/cluster
+      kustomize:
+        patches:
+          - # Workload identity (id-flux, AcrPull) for source-controller only:
+            # it is the one controller that pulls from ACR.
+            patch: |
+              apiVersion: v1
+              kind: ServiceAccount
+              metadata:
+                name: source-controller
+                annotations:
+                  azure.workload.identity/client-id: ${FLUX_CLIENT_ID}
+            target:
+              kind: ServiceAccount
+              name: source-controller
+          - patch: |
+              apiVersion: apps/v1
+              kind: Deployment
+              metadata:
+                name: source-controller
+              spec:
+                template:
+                  metadata:
+                    labels:
+                      azure.workload.identity/use: "true"
+            target:
+              kind: Deployment
+              name: source-controller
