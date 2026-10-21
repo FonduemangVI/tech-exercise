@@ -107,6 +107,7 @@ jobs:
       TF_VAR_vm_ssh_public_key: ${{ vars.VM_SSH_PUBLIC_KEY }}
       TF_VAR_github_pr_principal_id: ${{ vars.AZURE_PRINCIPAL_ID_PR }}
       TF_VAR_github_app_principal_id: ${{ vars.AZURE_PRINCIPAL_ID_APP }}
+      TF_VAR_policy_allowed_images_effect: ${{ vars.POLICY_ALLOWED_IMAGES_EFFECT || 'Audit' }}
       TF_VAR_admin_ip_cidrs: ${{ secrets.ADMIN_IP_CIDRS }} # secret: keeps the IP out of public logs
       TFSTATE_RG: ${{ vars.TFSTATE_RESOURCE_GROUP }}
       TFSTATE_SA: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
@@ -168,6 +169,7 @@ jobs:
       TF_VAR_vm_ssh_public_key: ${{ vars.VM_SSH_PUBLIC_KEY }}
       TF_VAR_github_pr_principal_id: ${{ vars.AZURE_PRINCIPAL_ID_PR }}
       TF_VAR_github_app_principal_id: ${{ vars.AZURE_PRINCIPAL_ID_APP }}
+      TF_VAR_policy_allowed_images_effect: ${{ vars.POLICY_ALLOWED_IMAGES_EFFECT || 'Audit' }}
       TF_VAR_admin_ip_cidrs: ${{ secrets.ADMIN_IP_CIDRS }} # secret: keeps the IP out of public logs
       TFSTATE_RG: ${{ vars.TFSTATE_RESOURCE_GROUP }}
       TFSTATE_SA: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}

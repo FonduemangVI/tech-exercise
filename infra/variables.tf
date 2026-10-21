@@ -128,3 +128,14 @@ variable "github_app_principal_id" {
   description = "Object ID of id-gh-app (bootstrap output github_principal_ids.app). Gets AcrPush and namespace-scoped AKS access."
   type        = string
 }
+
+variable "policy_allowed_images_effect" {
+  description = "Effect of the ACR-only images policy (R27). Start with Audit, list every running image, then switch to Deny."
+  type        = string
+  default     = "Audit"
+
+  validation {
+    condition     = contains(["Audit", "Deny", "Disabled"], var.policy_allowed_images_effect)
+    error_message = "policy_allowed_images_effect must be Audit, Deny or Disabled."
+  }
+}

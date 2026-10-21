@@ -17,6 +17,8 @@ Main Terraform for the exercise environment. Applied by `.github/workflows/infra
 | `acr.tf` | Container registry (Basic, admin user off, Entra ID only); AcrPull for `id-gh-pr`, AcrPush for `id-gh-app` |
 | `aks.tf` | AKS: one node, CNI Overlay with Cilium, API Server VNet Integration with the admin IP allow list, Entra ID and Azure RBAC with local accounts off, OIDC issuer and workload identity, Azure Policy and Secrets Store CSI add-ons; `id-aks` with Network Contributor on its subnets; cluster access for me and namespace-only access for `id-gh-app` |
 | `workload_identity.tf` | `id-flux` (AcrPull, for Flux source-controller) and `id-tasky` (Key Vault Secrets User), each with a federated credential for one service account |
+| `policy.tf` | R27: built-in "allowed images" policy on the cluster, ACR only (Audit, then Deny via the `POLICY_ALLOWED_IMAGES_EFFECT` repo variable); `aks-command` excluded so `command invoke` keeps working |
+| `alerts.tf` | R28: one alert on anonymous reads of the backups (W6), shown in the portal. Demo queries are in `docs/queries.md` |
 | `keyvault.tf` | Key Vault for all secrets: RBAC only, firewall default Deny, purge protection; admin gets Key Vault Reader |
 | `diagnostics.tf` | Diagnostic settings for every supported resource; NSGs with explicit categories (no metrics) |
 
