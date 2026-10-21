@@ -1,0 +1,20 @@
+# W5: INTENTIONAL WEAKNESS, required by the brief ("container has
+# cluster-wide admin role"). See docs/risk-register.md.
+#
+# Applied once at bootstrap by an admin (scripts/bootstrap-cluster.sh), not
+# by app.yml: the app pipeline only has rights in the tasky namespace and
+# cannot create cluster-wide bindings.
+#
+# Fix: delete this binding; the app needs no Kubernetes API access at all.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tasky-cluster-admin-w5
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: tasky-sa
+    namespace: tasky

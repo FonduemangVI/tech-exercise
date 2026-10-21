@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tasky
+  labels:
+    # Pod Security "restricted": non-root, no privilege escalation, no
+    # extra capabilities. The deployment meets it. (W5 is an RBAC weakness,
+    # not a pod one, so it is unaffected.)
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted

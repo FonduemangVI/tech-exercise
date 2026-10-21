@@ -40,3 +40,4 @@ Each suppression is an inline `#trivy:ignore:<ID>` comment directly above the re
 | W4 | Trivy | AZU-0047, AZU-0050 | `infra/network.tf` |
 | R5, R18 (by design) | Trivy | AZU-0047: HTTP and HTTPS from the internet to the AKS subnet, the public entry for the web app (80 redirects to 443) | `infra/network.tf` |
 | W6 | Trivy | AZU-0007 (container public access), AZU-0012 (storage network allows all) | `infra/storage.tf` |
+| W5 | Trivy | KSV-0111 is MEDIUM, below the HIGH gate, so no suppression; it stays visible in every `app.yml` run | `k8s/apps/tasky/rbac.yaml` |

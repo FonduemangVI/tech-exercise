@@ -12,12 +12,11 @@ updates:
     schedule:
       interval: weekly
 
-  # Enable once app/ contains the tasky source and Dockerfile
-  # - package-ecosystem: gomod
-  #   directory: /app
-  #   schedule:
-  #     interval: weekly
-  # - package-ecosystem: docker
-  #   directory: /app
-  #   schedule:
-  #     interval: weekly
+  - package-ecosystem: gomod
+    directory: /app
+    schedule:
+      interval: weekly
+
+  # Not docker: the Dockerfile's FROM lines are build arguments (base images
+  # come from ACR), which Dependabot cannot resolve. Base image tags are
+  # bumped in scripts/import-images.sh and app/Dockerfile together.

@@ -1,0 +1,199 @@
+name: app
+
+# R23: build the tasky container, push it to ACR and deploy it to AKS.
+# R25: Trivy gates the image and the manifests before anything is pushed.
+#
+# Pull requests build and scan with the read-only identity (no push).
+# Only main, through the prod-app environment, pushes and deploys.
+# No path filter on PRs, so the checks can be required (see infra.yml).
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "k8s/apps/**"
+      - ".github/workflows/app.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: app-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false # never cancel a running deploy
+
+env:
+  TRIVY_VERSION: "0.76.0"
+  IMAGE_REPOSITORY: tasky
+
+jobs:
+  manifests:
+    name: Scan manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Trivy
+        run: |
+          set -euo pipefail
+          base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          checksums="trivy_${TRIVY_VERSION}_checksums.txt"
+          curl -fsSLO "$base/$tarball"
+          curl -fsSLO "$base/$checksums"
+          grep " ${tarball}$" "$checksums" | sha256sum -c -
+          tar -xzf "$tarball" trivy
+          sudo install -m 0755 trivy /usr/local/bin/trivy
+
+      # W5 (cluster-admin binding) is reported as MEDIUM, below the gate,
+      # and stays visible in the output on purpose.
+      - name: Trivy Kubernetes manifest scan
+        run: trivy config --exit-code 1 --severity HIGH,CRITICAL k8s
+
+  build:
+    name: Build and scan image
+    needs: manifests
+    # PRs from this repo only (forks cannot get an OIDC token), and only
+    # once the app variables exist (scripts/set-app-vars.sh).
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.AZURE_CLIENT_ID_PR != '' && vars.ACR_LOGIN_SERVER != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      IMAGE: ${{ vars.ACR_LOGIN_SERVER }}/tasky:pr-${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      # id-gh-pr: AcrPull only, to pull the base images
+      - uses: azure/login@v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID_PR }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to ACR
+        run: az acr login --name "${{ vars.ACR_NAME }}"
+
+      - name: Build
+        run: docker build --build-arg REGISTRY="${{ vars.ACR_LOGIN_SERVER }}" -t "$IMAGE" app
+
+      # R16: the image must contain wizexercise.txt with my name
+      - name: Check wizexercise.txt
+        run: docker run --rm --entrypoint cat "$IMAGE" /app/wizexercise.txt | grep -qx "Michael Thomas"
+
+      - name: Install Trivy
+        run: |
+          set -euo pipefail
+          base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          checksums="trivy_${TRIVY_VERSION}_checksums.txt"
+          curl -fsSLO "$base/$tarball"
+          curl -fsSLO "$base/$checksums"
+          grep " ${tarball}$" "$checksums" | sha256sum -c -
+          tar -xzf "$tarball" trivy
+          sudo install -m 0755 trivy /usr/local/bin/trivy
+
+      # Fails on HIGH or CRITICAL findings that have a fix available
+      - name: Trivy image scan
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed "$IMAGE"
+
+  deploy:
+    name: Build, push and deploy
+    needs: manifests
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main' &&
+      vars.AZURE_CLIENT_ID_APP != '' && vars.ACR_LOGIN_SERVER != ''
+    runs-on: ubuntu-latest
+    environment: prod-app # only main can deploy
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      IMAGE: ${{ vars.ACR_LOGIN_SERVER }}/tasky:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      # id-gh-app: AcrPush, command invoke, Kubernetes rights in tasky only
+      - uses: azure/login@v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID_APP }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to ACR
+        run: az acr login --name "${{ vars.ACR_NAME }}"
+
+      - name: Build
+        run: docker build --build-arg REGISTRY="${{ vars.ACR_LOGIN_SERVER }}" -t "$IMAGE" app
+
+      # R16: the image must contain wizexercise.txt with my name
+      - name: Check wizexercise.txt
+        run: docker run --rm --entrypoint cat "$IMAGE" /app/wizexercise.txt | grep -qx "Michael Thomas"
+
+      - name: Install Trivy
+        run: |
+          set -euo pipefail
+          base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          checksums="trivy_${TRIVY_VERSION}_checksums.txt"
+          curl -fsSLO "$base/$tarball"
+          curl -fsSLO "$base/$checksums"
+          grep " ${tarball}$" "$checksums" | sha256sum -c -
+          tar -xzf "$tarball" trivy
+          sudo install -m 0755 trivy /usr/local/bin/trivy
+
+      # Same gate as the PR: nothing is pushed unless the scan passes
+      - name: Trivy image scan
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed "$IMAGE"
+
+      - name: Push
+        run: docker push "$IMAGE"
+
+      - name: Render manifests
+        env:
+          TASKY_CLIENT_ID: ${{ vars.TASKY_CLIENT_ID }}
+          KEY_VAULT_NAME: ${{ vars.KEY_VAULT_NAME }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          APP_HOSTNAME: ${{ vars.APP_HOSTNAME }}
+        run: |
+          set -euo pipefail
+          mkdir -p rendered
+          # Only the listed variables are substituted; anything else that
+          # looks like ${...} is left alone.
+          vars='${IMAGE} ${TASKY_CLIENT_ID} ${KEY_VAULT_NAME} ${AZURE_TENANT_ID} ${APP_HOSTNAME}'
+          for f in kustomization.yaml serviceaccount.yaml secretproviderclass.yaml \
+                   deployment.yaml service.yaml httproute.yaml; do
+            envsubst "$vars" < "k8s/apps/tasky/$f" > "rendered/$f"
+          done
+          if grep -n '\${' rendered/*.yaml; then
+            echo "Unsubstituted variables left in the manifests" >&2
+            exit 1
+          fi
+
+      # command invoke runs kubectl inside the cluster as id-gh-app, so the
+      # pipeline needs no network path to the API server and Kubernetes RBAC
+      # still limits it to the tasky namespace.
+      - name: Deploy
+        working-directory: rendered
+        run: |
+          set -euo pipefail
+          result="$(az aks command invoke \
+            --resource-group "${{ vars.AKS_RESOURCE_GROUP }}" \
+            --name "${{ vars.AKS_NAME }}" \
+            --file . \
+            --command "kubectl apply -k . && kubectl -n tasky rollout status deploy/tasky --timeout=180s" \
+            --output json)"
+          echo "$result" | jq -r '.logs'
+          exit "$(echo "$result" | jq -r '.exitCode')"
