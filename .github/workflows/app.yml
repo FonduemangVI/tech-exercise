@@ -172,11 +172,13 @@ jobs:
           mkdir -p rendered
           # Only the listed variables are substituted; anything else that
           # looks like ${...} is left alone.
+          # shellcheck disable=SC2016 # literal: the list of variables envsubst may replace
           vars='${IMAGE} ${TASKY_CLIENT_ID} ${KEY_VAULT_NAME} ${AZURE_TENANT_ID} ${APP_HOSTNAME}'
           for f in kustomization.yaml serviceaccount.yaml secretproviderclass.yaml \
                    deployment.yaml service.yaml httproute.yaml; do
             envsubst "$vars" < "kubernetes/apps/tasky/tasky/app/$f" > "rendered/$f"
           done
+          # shellcheck disable=SC2016 # literal: look for any ${ left unreplaced
           if grep -n '\${' rendered/*.yaml; then
             echo "Unsubstituted variables left in the manifests" >&2
             exit 1

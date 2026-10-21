@@ -52,13 +52,13 @@ jobs:
             echo "::endgroup::"
           done
 
-      # Scripts that run on the Mongo VM (and the repo scripts). A broken VM
+      # Scripts that run on the Mongo VM (and the repo and demo scripts). A broken VM
       # script replaces the VM on apply, so it is caught here first.
       # shellcheck is preinstalled on GitHub-hosted Ubuntu runners.
       - name: ShellCheck
         run: |
           shellcheck --version
-          shellcheck -x -s bash infra/vm/*.sh scripts/*.sh
+          shellcheck -x -s bash infra/vm/*.sh scripts/*.sh demo/*.sh
 
       # Installed from the release with checksum verification rather than a
       # third-party action, to keep the supply chain small.

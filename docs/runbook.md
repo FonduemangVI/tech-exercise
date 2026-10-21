@@ -157,6 +157,10 @@ gh workflow run infra.yml --ref main   # approve Apply
 
 Once each check has run at least once, add it as a required status check on `main`: `Static checks`, `Plan`, `Verify actions lockfile`, `Scan manifests`, `Build and scan image`.
 
+## 8. Before the presentation
+
+`demo/demo.sh check` before every rehearsal and before the call. The run sheet and talk track are in [`demo/README.md`](../demo/README.md).
+
 ## Day to day
 
 | Situation | What to do |
