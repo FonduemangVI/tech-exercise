@@ -85,7 +85,7 @@ resource "azurerm_subnet_network_security_group_association" "db" {
 }
 
 # W4 (R8): SSH open to the internet. Intentional, required by the brief.
-# See docs/risk-register.md.
+# See docs/issue-register.md.
 #trivy:ignore:AZU-0047
 #trivy:ignore:AZU-0050
 resource "azurerm_network_security_rule" "db_ssh_internet" {

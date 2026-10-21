@@ -1,5 +1,5 @@
 # W5: INTENTIONAL WEAKNESS, required by the brief ("container has
-# cluster-wide admin role"). See docs/risk-register.md.
+# cluster-wide admin role"). See docs/issue-register.md.
 #
 # Managed by Flux (kubernetes/apps/tasky/kustomization.yaml), not by app.yml:
 # the app pipeline only has rights in the tasky namespace and cannot create
