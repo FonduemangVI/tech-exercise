@@ -1,0 +1,134 @@
+# GitHub Actions identities. Each one trusts a single GitHub OIDC subject, so
+# a token from any other repo, branch, environment or event is rejected.
+#
+# | Identity    | Used by                          | Trusted subject                 |
+# |-------------|----------------------------------|---------------------------------|
+# | id-gh-infra | infra.yml apply on main          | environment:prod-infra          |
+# | id-gh-app   | app.yml push and deploy on main  | environment:prod-app            |
+# | id-gh-pr    | Plan and build jobs on PRs       | pull_request                    |
+#
+# Role assignments on ACR and AKS for id-gh-app and id-gh-pr are made in
+# infra/, because those resources do not exist yet.
+
+locals {
+  github_issuer   = "https://token.actions.githubusercontent.com"
+  github_audience = ["api://AzureADTokenExchange"]
+  github_repo     = "repo:${var.github_owner}/${var.github_repo}"
+
+  pipeline_identities = {
+    infra = {
+      name    = "${local.prefix}-id-gh-infra"
+      subject = "${local.github_repo}:environment:${var.github_environment_infra}"
+    }
+    app = {
+      name    = "${local.prefix}-id-gh-app"
+      subject = "${local.github_repo}:environment:${var.github_environment_app}"
+    }
+    pr = {
+      name    = "${local.prefix}-id-gh-pr"
+      subject = "${local.github_repo}:pull_request"
+    }
+  }
+}
+
+resource "azurerm_user_assigned_identity" "github" {
+  for_each = local.pipeline_identities
+
+  name                = each.value.name
+  resource_group_name = azurerm_resource_group.bootstrap.name
+  location            = azurerm_resource_group.bootstrap.location
+  tags                = local.tags
+}
+
+resource "azurerm_federated_identity_credential" "github" {
+  for_each = local.pipeline_identities
+
+  name                      = "github-${each.key}"
+  user_assigned_identity_id = azurerm_user_assigned_identity.github[each.key].id
+  audience                  = local.github_audience
+  issuer                    = local.github_issuer
+  subject                   = each.value.subject
+}
+
+# ---------- id-gh-infra: applies the main configuration ----------
+
+resource "azurerm_role_assignment" "infra_contributor" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Contributor"
+  principal_id         = azurerm_user_assigned_identity.github["infra"].principal_id
+}
+
+# Contributor cannot write policy assignments or exemptions
+# (Microsoft.Authorization/*/write is excluded), so add this.
+resource "azurerm_role_assignment" "infra_policy" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Resource Policy Contributor"
+  principal_id         = azurerm_user_assigned_identity.github["infra"].principal_id
+}
+
+# The infra pipeline must create role assignments (including the deliberate
+# W3 Contributor grant to the Mongo VM). The condition limits it to the roles
+# in var.assignable_roles, so it can never grant Owner, User Access
+# Administrator or RBAC Administrator.
+data "azurerm_role_definition" "assignable" {
+  for_each = toset(var.assignable_roles)
+
+  name  = each.value
+  scope = data.azurerm_subscription.current.id
+}
+
+locals {
+  assignable_role_guids = join(", ", [for r in data.azurerm_role_definition.assignable : basename(r.id)])
+
+  rbac_condition = <<-EOT
+    (
+      (
+        !(ActionMatches{'Microsoft.Authorization/roleAssignments/write'})
+      )
+      OR
+      (
+        @Request[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {${local.assignable_role_guids}}
+      )
+    )
+    AND
+    (
+      (
+        !(ActionMatches{'Microsoft.Authorization/roleAssignments/delete'})
+      )
+      OR
+      (
+        @Resource[Microsoft.Authorization/roleAssignments:RoleDefinitionId] ForAnyOfAnyValues:GuidEquals {${local.assignable_role_guids}}
+      )
+    )
+  EOT
+}
+
+resource "azurerm_role_assignment" "infra_rbac_admin" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Role Based Access Control Administrator"
+  principal_id         = azurerm_user_assigned_identity.github["infra"].principal_id
+  condition            = local.rbac_condition
+  condition_version    = "2.0"
+}
+
+resource "azurerm_role_assignment" "infra_tfstate" {
+  scope                = azurerm_storage_container.tfstate.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_user_assigned_identity.github["infra"].principal_id
+}
+
+# ---------- id-gh-pr: read-only plan on pull requests ----------
+
+resource "azurerm_role_assignment" "pr_reader" {
+  scope                = data.azurerm_subscription.current.id
+  role_definition_name = "Reader"
+  principal_id         = azurerm_user_assigned_identity.github["pr"].principal_id
+}
+
+# Plan reads state and takes a lease (lock) on the state blob, which needs
+# data-plane write on the state container only.
+resource "azurerm_role_assignment" "pr_tfstate" {
+  scope                = azurerm_storage_container.tfstate.id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_user_assigned_identity.github["pr"].principal_id
+}
