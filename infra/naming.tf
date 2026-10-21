@@ -11,6 +11,7 @@ locals {
     aks     = "${local.prefix}-aks"
     vm      = "${local.prefix}-mongo-vm"
     law     = "${local.prefix}-law"
+    kv      = "${local.prefix}-kv-${random_string.suffix.result}"
     acr     = "${local.prefix_compact}acr${random_string.suffix.result}"
     storage = "${local.prefix_compact}bkp${random_string.suffix.result}"
   }
@@ -24,7 +25,7 @@ locals {
   }
 }
 
-# Suffix for names that must be globally unique (ACR, storage)
+# Suffix for names that must be globally unique (ACR, storage, Key Vault)
 resource "random_string" "suffix" {
   length  = 5
   upper   = false

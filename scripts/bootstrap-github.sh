@@ -5,9 +5,14 @@
 # Run from the repository root after `terraform apply` in infra/bootstrap.
 # Requires: terraform, jq, gh (authenticated with repo admin rights).
 #
-# Nothing written here is a secret: client IDs, tenant ID, subscription ID
-# and storage names are identifiers. Access is controlled by the federated
-# credential subjects and Azure RBAC, not by keeping these values hidden.
+# Repository variables are not secrets: client IDs, tenant ID, subscription
+# ID, object IDs and storage names are identifiers. Access is controlled by
+# the federated credential subjects and Azure RBAC, not by hiding them.
+#
+# The one exception is the admin IP allow list (ADMIN_IP_CIDRS), stored as a
+# secret so it is masked in public run logs. Set ADMIN_IP_CIDRS before
+# running, as an HCL list, e.g. '["203.0.113.10/32"]'. If unset, the
+# current public IP is detected and used as a /32.
 
 set -euo pipefail
 
@@ -32,6 +37,13 @@ ENV_APP="$(tf_out '.github_environments.value.app')"
 LOCATION="$(tf_out '.location.value.name')"
 LOCATION_SHORT="$(tf_out '.location.value.short')"
 OWNER_TAG="$(tf_out '.owner_tag.value')"
+ADMIN_OBJECT_ID="$(tf_out '.admin_object_id.value')"
+
+if [[ -z "${ADMIN_IP_CIDRS:-}" ]]; then
+  MY_IP="$(curl -fsS https://api.ipify.org)"
+  ADMIN_IP_CIDRS="[\"${MY_IP}/32\"]"
+  echo "ADMIN_IP_CIDRS not set; using detected public IP"
+fi
 
 MY_USER_ID="$(gh api user --jq '.id')"
 
@@ -75,5 +87,9 @@ gh variable set TFSTATE_CONTAINER       --repo "$REPO" --body "$TFSTATE_CONTAINE
 gh variable set AZURE_LOCATION          --repo "$REPO" --body "$LOCATION"
 gh variable set AZURE_LOCATION_SHORT    --repo "$REPO" --body "$LOCATION_SHORT"
 gh variable set OWNER_TAG               --repo "$REPO" --body "$OWNER_TAG"
+gh variable set ADMIN_OBJECT_ID         --repo "$REPO" --body "$ADMIN_OBJECT_ID"
 
-echo "Done. Check: gh variable list --repo $REPO"
+echo "Setting repository secrets"
+gh secret set ADMIN_IP_CIDRS --repo "$REPO" --body "$ADMIN_IP_CIDRS"
+
+echo "Done. Check: gh variable list --repo $REPO && gh secret list --repo $REPO"

@@ -8,6 +8,9 @@ locals {
     # Workspace audit logs: who ran which queries
     law = azurerm_log_analytics_workspace.main.id
 
+    # Key Vault AuditEvent: every secret read and write, with the caller
+    kv = azurerm_key_vault.main.id
+
     # To add as they are built:
     # acr     = azurerm_container_registry.main.id
     # blob    = "${azurerm_storage_account.backup.id}/blobServices/default"

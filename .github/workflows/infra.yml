@@ -95,6 +95,8 @@ jobs:
       TF_VAR_location_short: ${{ vars.AZURE_LOCATION_SHORT }}
       TF_VAR_owner_tag: ${{ vars.OWNER_TAG }}
       TF_VAR_github_repository: ${{ github.repository }}
+      TF_VAR_admin_object_id: ${{ vars.ADMIN_OBJECT_ID }}
+      TF_VAR_admin_ip_cidrs: ${{ secrets.ADMIN_IP_CIDRS }} # secret: keeps the IP out of public logs
       TFSTATE_RG: ${{ vars.TFSTATE_RESOURCE_GROUP }}
       TFSTATE_SA: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
       TFSTATE_CONTAINER: ${{ vars.TFSTATE_CONTAINER }}
@@ -151,6 +153,8 @@ jobs:
       TF_VAR_location_short: ${{ vars.AZURE_LOCATION_SHORT }}
       TF_VAR_owner_tag: ${{ vars.OWNER_TAG }}
       TF_VAR_github_repository: ${{ github.repository }}
+      TF_VAR_admin_object_id: ${{ vars.ADMIN_OBJECT_ID }}
+      TF_VAR_admin_ip_cidrs: ${{ secrets.ADMIN_IP_CIDRS }} # secret: keeps the IP out of public logs
       TFSTATE_RG: ${{ vars.TFSTATE_RESOURCE_GROUP }}
       TFSTATE_SA: ${{ vars.TFSTATE_STORAGE_ACCOUNT }}
       TFSTATE_CONTAINER: ${{ vars.TFSTATE_CONTAINER }}

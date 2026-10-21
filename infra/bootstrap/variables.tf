@@ -57,5 +57,8 @@ variable "assignable_roles" {
     "Azure Kubernetes Service Cluster User Role",
     "Azure Kubernetes Service RBAC Writer",
     "Azure Kubernetes Service RBAC Cluster Admin",
+    "Key Vault Secrets Officer",
+    "Key Vault Secrets User",
+    "Key Vault Reader",
   ]
 }
