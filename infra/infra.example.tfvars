@@ -11,5 +11,7 @@ admin_ip_cidrs  = ["203.0.113.10/32"]
 github_pr_principal_id  = "00000000-0000-0000-0000-000000000000"
 github_app_principal_id = "00000000-0000-0000-0000-000000000000"
 
+policy_allowed_images_effect = "Audit" # then "Deny" once every running image is from ACR
+
 # Placeholder: paste the full single line from ~/.ssh/wiz-exercise.pub
 vm_ssh_public_key = "ssh-ed25519 AAAA... wiz-exercise-mongo-vm"
