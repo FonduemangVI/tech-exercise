@@ -21,9 +21,20 @@ Scanner findings for these items are suppressed only with an inline ignore that 
 | Subscription takeover | W4, then W1 or W2, then W3 | 2 |
 | Cluster compromise | Public app, then W5, then the Mongo credentials in the cluster | 3 |
 
+## Accepted platform risks
+
+Not part of the exercise brief. These are trade-offs in the supporting platform, accepted with compensating controls and an expiry date.
+
+| ID | Risk | Where | Why accepted | Compensating controls | Expires | Proper fix |
+|---|---|---|---|---|---|---|
+| OPS-1 | State storage account public endpoint allows all networks (Trivy AZU-0012, CRITICAL) | `infra/bootstrap/main.tf` | GitHub-hosted runners have no fixed IPs, so a default-deny network rule would block the pipeline from its own state | Entra ID only (shared keys disabled), no anonymous access, TLS 1.2, RBAC scoped to the `tfstate` container, versioning and soft delete | 2026-12-31 | Private endpoint with a self-hosted runner in the VNet |
+
 ## Scanner suppressions
+
+Each suppression is an inline `#trivy:ignore:<ID>` comment directly above the resource, referencing the risk ID. Suppressions for accepted platform risks carry an expiry date (`:exp:YYYY-MM-DD`), after which the pipeline fails again.
 
 | Risk ID | Scanner | Check ID | File |
 |---|---|---|---|
+| OPS-1 | Trivy | AZU-0012 (expires 2026-12-31) | `infra/bootstrap/main.tf` |
 | W4 | Trivy | _to be added_ | `infra/network.tf` |
 | W6 | Trivy | _to be added_ | `infra/storage.tf` |

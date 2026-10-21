@@ -29,6 +29,9 @@ TFSTATE_SA="$(tf_out '.tfstate.value.storage_account_name')"
 TFSTATE_CONTAINER="$(tf_out '.tfstate.value.container_name')"
 ENV_INFRA="$(tf_out '.github_environments.value.infra')"
 ENV_APP="$(tf_out '.github_environments.value.app')"
+LOCATION="$(tf_out '.location.value.name')"
+LOCATION_SHORT="$(tf_out '.location.value.short')"
+OWNER_TAG="$(tf_out '.owner_tag.value')"
 
 MY_USER_ID="$(gh api user --jq '.id')"
 
@@ -69,5 +72,8 @@ gh variable set AZURE_CLIENT_ID_PR      --repo "$REPO" --body "$CLIENT_ID_PR"
 gh variable set TFSTATE_RESOURCE_GROUP  --repo "$REPO" --body "$TFSTATE_RG"
 gh variable set TFSTATE_STORAGE_ACCOUNT --repo "$REPO" --body "$TFSTATE_SA"
 gh variable set TFSTATE_CONTAINER       --repo "$REPO" --body "$TFSTATE_CONTAINER"
+gh variable set AZURE_LOCATION          --repo "$REPO" --body "$LOCATION"
+gh variable set AZURE_LOCATION_SHORT    --repo "$REPO" --body "$LOCATION_SHORT"
+gh variable set OWNER_TAG               --repo "$REPO" --body "$OWNER_TAG"
 
 echo "Done. Check: gh variable list --repo $REPO"

@@ -25,6 +25,18 @@ output "tfstate" {
   }
 }
 
+output "location" {
+  description = "Region and short code, reused by infra/ so names match."
+  value = {
+    name  = var.location
+    short = var.location_short
+  }
+}
+
+output "owner_tag" {
+  value = var.owner_tag
+}
+
 output "github_environments" {
   value = {
     infra = var.github_environment_infra

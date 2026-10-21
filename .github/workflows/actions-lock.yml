@@ -1,0 +1,38 @@
+name: actions-lock
+
+# Fails the PR if .github/workflows/actions.lock is missing an action, is
+# stale, or a locked commit would be rejected. Runs on every PR (no path
+# filter) so it can be a required status check.
+#
+# Action dependencies are locked in actions.lock instead of SHA pins in the
+# workflow files. To add or change an action: edit the workflow, then run
+# `gh actions-lock` locally and commit both files.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  GH_ACTIONS_LOCK_VERSION: v0.2.0
+
+jobs:
+  verify:
+    name: Verify actions lockfile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install gh-actions-lock (pinned)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh extension install github/gh-actions-lock --pin "$GH_ACTIONS_LOCK_VERSION"
+
+      - name: Verify lockfile
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh actions-lock --verify
