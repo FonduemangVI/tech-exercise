@@ -33,7 +33,7 @@ resource "azurerm_resource_group" "bootstrap" {
 
 # ---------- Terraform state storage ----------
 
-# Accepted risk OPS-1 (docs/risk-register.md): the public endpoint stays
+# Accepted exception OPS-1 (docs/issue-register.md): the public endpoint stays
 # reachable because GitHub-hosted runners have no fixed IPs. Compensating
 # controls: Entra ID only (shared keys off), no anonymous access, TLS 1.2,
 # RBAC scoped to the tfstate container, versioning and soft delete.

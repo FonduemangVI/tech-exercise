@@ -76,7 +76,7 @@ jobs:
           trivy --version
 
       # Fails on HIGH or CRITICAL. Deliberate weaknesses are suppressed only
-      # with inline ignores that reference docs/risk-register.md.
+      # with inline ignores that reference docs/issue-register.md.
       - name: Trivy IaC scan
         run: trivy config --exit-code 1 --severity HIGH,CRITICAL infra
 

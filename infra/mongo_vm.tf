@@ -1,7 +1,7 @@
 # Mongo VM. Carries three of the intentional weaknesses:
 #   W1 outdated OS (var.vm_image), W2 outdated MongoDB (var.mongo_version),
 #   W3 Contributor on the subscription (below). W4, SSH from the internet,
-#   is in network.tf. See docs/risk-register.md.
+#   is in network.tf. See docs/issue-register.md.
 #
 # Everything else is locked down: SSH key only, Trusted Launch, MongoDB
 # auth on and bound to the private IP, credentials generated on the VM and

@@ -10,7 +10,7 @@
 # Terraform never writes secret values. The Mongo VM generates its own
 # credentials at first boot and writes them here with its managed identity,
 # so no secret reaches Terraform state, VM custom data or pipeline logs.
-# Accepted as OPS-2 in docs/risk-register.md.
+# Accepted exception OPS-2 in docs/issue-register.md.
 
 data "azurerm_client_config" "current" {}
 

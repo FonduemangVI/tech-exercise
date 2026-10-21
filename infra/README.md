@@ -22,7 +22,6 @@ Main Terraform for the exercise environment. Applied by `.github/workflows/infra
 | `keyvault.tf` | Key Vault for all secrets: RBAC only, firewall default Deny, purge protection; admin gets Key Vault Reader |
 | `diagnostics.tf` | Diagnostic settings for every supported resource; NSGs with explicit categories (no metrics) |
 
-More files (network, AKS, Mongo VM, storage, ACR, policy) are added as each part is built.
 
 ## Pipeline
 
@@ -40,7 +39,7 @@ AKS upgrades: azurerm has no `max_unavailable`, so an upgrade needs a surge node
 
 Terraform never writes secret values. The Mongo VM generates its own credentials at first boot and writes them to Key Vault with its managed identity; AKS reads them through the Secrets Store CSI driver with workload identity. Nothing secret lands in state, VM custom data or pipeline logs.
 
-Changing any file in `vm/` changes the VM's custom data, which replaces the VM (new disk, empty database). The bootstrap script reuses the passwords already in Key Vault, so the app's connection string stays valid. The vault has a public endpoint (no private endpoint in this design), accepted as OPS-2 in `docs/risk-register.md`.
+Changing any file in `vm/` changes the VM's custom data, which replaces the VM (new disk, empty database). The bootstrap script reuses the passwords already in Key Vault, so the app's connection string stays valid. The vault has a public endpoint (no private endpoint in this design), accepted as exception OPS-2 in `docs/issue-register.md`.
 
 ## Local run
 

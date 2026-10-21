@@ -48,6 +48,10 @@ dist/
 # Helm chart archives pulled locally for bootstrap
 *.tgz
 
+# ---------- Local tool logs ----------
+# Written by local tooling (e.g. MCP servers); may hold command history
+logs/
+
 # ---------- OS and editor ----------
 .DS_Store
 Thumbs.db

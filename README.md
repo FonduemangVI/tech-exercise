@@ -4,7 +4,7 @@
 > This repository builds an Azure environment that contains intentional security
 > weaknesses, as required by the Wiz Technical Exercise. Do not deploy it to a
 > subscription that holds anything you care about, and tear it down when finished.
-> Each weakness is documented in [`docs/risk-register.md`](docs/risk-register.md).
+> Each weakness is documented in [`docs/issue-register.md`](docs/issue-register.md).
 
 ## What it builds
 
@@ -26,7 +26,7 @@ A two-tier web application on Azure:
 | `app/` | tasky source, Dockerfile and `wizexercise.txt` |
 | `scripts/` | Bootstrap and helper scripts: GitHub variables, image import into ACR, app variables, Flux bootstrap |
 | `demo/` | Scripted demo steps for the presentation |
-| `docs/` | Risk register and supporting notes |
+| `docs/` | Runbook (deployment order), issue register and demo queries |
 | `.github/workflows/` | `infra.yml` (IaC), `app.yml` (build, scan, push, deploy), `actions-lock.yml` (lockfile check) |
 
 ## Pipelines
@@ -52,11 +52,11 @@ Action dependencies are locked to verified commits in [`.github/workflows/action
 | W5 | Application service account bound to `cluster-admin` |
 | W6 | Backup container allows public read and public listing |
 
-See [`docs/risk-register.md`](docs/risk-register.md) for exposure, business impact and remediation.
+See [`docs/issue-register.md`](docs/issue-register.md) for the control each one breaks, exposure, business impact and remediation.
 
 ## Getting started
 
-Prerequisites, bootstrap and deployment steps will be added as each part is built.
+Follow [`docs/runbook.md`](docs/runbook.md): prerequisites, then bootstrap, infrastructure, image import, Flux, app and controls, in that order, with a check after each step.
 
 ## Use of AI tools
 

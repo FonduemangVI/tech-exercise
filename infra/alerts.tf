@@ -8,7 +8,7 @@
 resource "azurerm_monitor_scheduled_query_rules_alert_v2" "anonymous_backup_reads" {
   name                = "${local.prefix}-alert-anon-backup-reads"
   display_name        = "W6: anonymous read of database backups"
-  description         = "Someone read or listed the public backups container without authentication. See docs/risk-register.md (W6)."
+  description         = "Someone read or listed the public backups container without authentication. See docs/issue-register.md (W6)."
   resource_group_name = azurerm_resource_group.main.name
   location            = azurerm_resource_group.main.location
   scopes              = [azurerm_log_analytics_workspace.main.id]

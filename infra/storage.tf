@@ -1,5 +1,5 @@
 # Backup storage. W6: the backups container allows anonymous read and
-# list, intentionally, as required by the brief. See docs/risk-register.md.
+# list, intentionally, as required by the brief. See docs/issue-register.md.
 #
 # Everything else is locked down: no shared keys (Entra ID only, the VM
 # writes with its managed identity), TLS 1.2, soft delete. Anonymous read
