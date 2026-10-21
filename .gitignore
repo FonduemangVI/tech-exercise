@@ -1,0 +1,53 @@
+# This repository is public. Never commit state, real variable files,
+# credentials or keys. Check `git status` before every commit.
+
+# ---------- Terraform ----------
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Variable files can hold subscription IDs and IPs: commit examples only
+*.tfvars
+*.tfvars.json
+!*.example.tfvars
+
+# Keep the provider lock file (.terraform.lock.hcl) committed
+
+# ---------- Kubernetes ----------
+kubeconfig
+*.kubeconfig
+.kube/
+
+# ---------- Secrets and keys ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+id_rsa*
+id_ed25519*
+
+# ---------- Build output ----------
+bin/
+dist/
+# Helm chart archives pulled locally for bootstrap
+*.tgz
+
+# ---------- OS and editor ----------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
