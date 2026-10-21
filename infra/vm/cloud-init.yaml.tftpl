@@ -1,0 +1,43 @@
+#cloud-config
+# Mongo VM first boot. No secrets here: custom data is readable by anyone
+# with Contributor on the VM. Credentials are generated on the VM by
+# mongo-bootstrap.sh and stored in Key Vault.
+
+ssh_pwauth: false
+package_update: true
+package_upgrade: false # W1: the OS stays as shipped, outdated by design
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - jq
+
+write_files:
+  - path: /etc/mongo-vm.env
+    permissions: "0644"
+    content: |
+      KV_URI=${kv_uri}
+      STORAGE_ACCOUNT=${storage_account}
+      BACKUP_CONTAINER=${backup_container}
+      MONGO_PRIVATE_IP=${mongo_private_ip}
+      MONGO_VERSION=${mongo_version}
+  - path: /usr/local/lib/kv.sh
+    permissions: "0644"
+    encoding: b64
+    content: ${kv_sh}
+  - path: /usr/local/sbin/mongo-bootstrap.sh
+    permissions: "0750"
+    encoding: b64
+    content: ${bootstrap_sh}
+  - path: /usr/local/sbin/mongo-backup.sh
+    permissions: "0750"
+    encoding: b64
+    content: ${backup_sh}
+  - path: /etc/cron.d/mongo-backup
+    permissions: "0644"
+    content: |
+      # R12: daily backup at 02:00 UTC
+      0 2 * * * root /usr/local/sbin/mongo-backup.sh >> /var/log/mongo-backup.log 2>&1
+
+runcmd:
+  - [bash, -o, pipefail, -c, "/usr/local/sbin/mongo-bootstrap.sh 2>&1 | tee -a /var/log/mongo-bootstrap.log"]
