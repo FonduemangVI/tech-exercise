@@ -1,9 +1,9 @@
 # Applied by app.yml after envsubst fills in ${IMAGE}, ${TASKY_CLIENT_ID},
 # ${KEY_VAULT_NAME}, ${AZURE_TENANT_ID} and ${APP_HOSTNAME}.
 #
-# Not listed: namespace.yaml and rbac.yaml (W5). Both are cluster-scoped, so
-# an admin applies them once at bootstrap (scripts/bootstrap-cluster.sh);
-# the app pipeline only has rights inside the tasky namespace.
+# Owned by app.yml, not Flux: there is no ks.yaml for this folder. The
+# namespace and the W5 binding are cluster-scoped, so Flux owns them
+# (kubernetes/apps/tasky/kustomization.yaml).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

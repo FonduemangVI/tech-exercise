@@ -1,0 +1,25 @@
+---
+# yaml-language-server: $schema=https://json.schemastore.org/helmfile
+
+# Installs Flux (operator, then instance) once. From then on Flux manages
+# itself and everything under kubernetes/apps from Git.
+
+helmDefaults:
+  cleanupOnFail: true
+  wait: true
+  waitForJobs: true
+
+bases:
+  - default.yaml
+
+releases:
+  - name: flux-operator
+    namespace: flux-system
+    inherit:
+      - template: default
+
+  - name: flux-instance
+    namespace: flux-system
+    inherit:
+      - template: default
+    needs: ["flux-system/flux-operator"]

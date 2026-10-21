@@ -1,0 +1,46 @@
+---
+# Two Kustomizations because the ClusterIssuer CRD is installed by the
+# HelmRelease: in one Kustomization the dry-run would fail on a fresh cluster.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cert-manager
+spec:
+  dependsOn:
+    # cert-manager's Gateway API support (HTTP-01 through an HTTPRoute) needs
+    # the Gateway API CRDs at startup; the envoy-gateway chart installs them.
+    - name: envoy-gateway
+      namespace: network
+  interval: 1h
+  path: ./kubernetes/apps/cert-manager/cert-manager/app
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: cert-manager
+  wait: true
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: cert-manager-issuers
+spec:
+  dependsOn:
+    - name: cert-manager
+  healthChecks:
+    - apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      name: letsencrypt-production
+  healthCheckExprs:
+    - apiVersion: cert-manager.io/v1
+      kind: ClusterIssuer
+      current: status.conditions.exists(e, e.type == 'Ready' && e.status == 'True')
+  interval: 1h
+  path: ./kubernetes/apps/cert-manager/cert-manager/issuers
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  targetNamespace: cert-manager

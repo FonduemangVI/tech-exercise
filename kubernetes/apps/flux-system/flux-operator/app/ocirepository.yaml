@@ -1,0 +1,16 @@
+---
+# Chart copied into ACR by scripts/import-images.sh; pulled by
+# source-controller with workload identity (id-flux, AcrPull).
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  name: flux-operator
+spec:
+  interval: 15m
+  layerSelector:
+    mediaType: application/vnd.cncf.helm.chart.content.v1.tar+gzip
+    operation: copy
+  provider: azure
+  ref:
+    tag: 0.61.0
+  url: oci://${ACR_LOGIN_SERVER}/controlplaneio-fluxcd/charts/flux-operator

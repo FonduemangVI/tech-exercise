@@ -1,5 +1,6 @@
 # Changes to infrastructure, pipelines and cluster config need owner review.
 *                 @FonduemangVI
 /infra/           @FonduemangVI
-/k8s/             @FonduemangVI
+/kubernetes/      @FonduemangVI
+/bootstrap/       @FonduemangVI
 /.github/         @FonduemangVI

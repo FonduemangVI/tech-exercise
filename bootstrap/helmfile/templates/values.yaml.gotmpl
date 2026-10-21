@@ -1,0 +1,6 @@
+{{- $file := printf "../../../kubernetes/apps/%s/%s/app/helmrelease.yaml" .Release.Namespace .Release.Name -}}
+{{- $hr := readFile $file
+      | replace "${ACR_LOGIN_SERVER}" (requiredEnv "ACR_LOGIN_SERVER")
+      | replace "${FLUX_CLIENT_ID}" (requiredEnv "FLUX_CLIENT_ID")
+      | fromYaml -}}
+{{ $hr.spec.values | toYaml }}

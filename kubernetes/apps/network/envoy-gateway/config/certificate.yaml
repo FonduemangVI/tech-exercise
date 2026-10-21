@@ -1,0 +1,14 @@
+---
+# Let's Encrypt certificate for the app hostname, used by the Gateway's
+# https listener. Switch issuerRef to letsencrypt-staging while testing.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: app
+spec:
+  secretName: app-tls
+  dnsNames:
+    - ${APP_HOSTNAME}
+  issuerRef:
+    name: letsencrypt-production
+    kind: ClusterIssuer

@@ -1,0 +1,11 @@
+---
+# Flux owns only the cluster-scoped pieces of tasky: the namespace and the
+# W5 binding. The workload itself (tasky/app/) is deployed by app.yml (R23)
+# and has no ks.yaml, so Flux never reconciles it.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: tasky
+
+resources:
+  - ./namespace.yaml
+  - ./rbac.yaml

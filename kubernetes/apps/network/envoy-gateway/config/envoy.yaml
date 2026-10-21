@@ -1,0 +1,81 @@
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: envoy
+spec:
+  logging:
+    level:
+      default: info
+  provider:
+    type: Kubernetes
+    kubernetes:
+      envoyDeployment:
+        replicas: 1 # single node
+        container:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 512Mi
+      envoyService:
+        externalTrafficPolicy: Cluster
+        annotations:
+          # The Azure LB public IP gets <label>.<region>.cloudapp.azure.com
+          service.beta.kubernetes.io/azure-dns-label-name: ${APP_DNS_LABEL}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: envoy
+    namespace: network
+---
+# R5 and R18: the app's public entry point, an Azure Standard LB in front of
+# Envoy. HTTPS for the app; port 80 only redirects and answers ACME HTTP-01.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: envoy-external
+spec:
+  gatewayClassName: envoy
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: Same # only the redirect and cert-manager's challenge route
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: ${APP_HOSTNAME}
+      allowedRoutes:
+        namespaces:
+          from: All
+      tls:
+        certificateRefs:
+          - kind: Secret
+            name: app-tls
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-redirect
+spec:
+  parentRefs:
+    - name: envoy-external
+      namespace: network
+      sectionName: http
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect:
+            scheme: https
+            statusCode: 301

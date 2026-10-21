@@ -21,14 +21,13 @@ A two-tier web application on Azure:
 |---|---|
 | `infra/bootstrap/` | Run once locally: Terraform state storage, GitHub OIDC identities and federated credentials |
 | `infra/` | Main Terraform: network, AKS, Mongo VM, storage, ACR, monitoring, policy |
-| `k8s/flux/` | FluxInstance, applied once at bootstrap |
-| `k8s/platform/` | Platform components, owned and reconciled by Flux |
-| `k8s/apps/tasky/` | Application manifests, owned and deployed by the app pipeline |
+| `kubernetes/` | Cluster config, laid out like home-ops: `flux/cluster/` is the Flux root, `apps/<namespace>/<app>/` holds each app (`ks.yaml` plus `app/`). See [`kubernetes/README.md`](kubernetes/README.md) |
+| `bootstrap/helmfile/` | One-off Flux install (Flux Operator, then FluxInstance), using the same chart versions and values as Git |
 | `app/` | tasky source, Dockerfile and `wizexercise.txt` |
-| `scripts/` | Helper scripts, such as importing upstream images into ACR |
+| `scripts/` | Bootstrap and helper scripts: GitHub variables, image import into ACR, app variables, Flux bootstrap |
 | `demo/` | Scripted demo steps for the presentation |
 | `docs/` | Risk register and supporting notes |
-| `.github/workflows/` | `infra.yml` (IaC), `app.yml` (build, scan, push, deploy), `destroy.yml` (teardown) |
+| `.github/workflows/` | `infra.yml` (IaC), `app.yml` (build, scan, push, deploy), `actions-lock.yml` (lockfile check) |
 
 ## Pipelines
 
@@ -36,7 +35,7 @@ A two-tier web application on Azure:
 |---|---|
 | `infra.yml` | Format and validate Terraform, scan with Trivy, plan on pull request, apply on `main` with approval |
 | `app.yml` | Build the image from ACR base images, scan with Trivy, check `wizexercise.txt`, push to ACR, deploy to AKS |
-| Flux | Reconciles `k8s/platform/` from `main` (not a pipeline) |
+| Flux | Reconciles `kubernetes/apps/` from `main` (not a pipeline): Flux itself, cert-manager, Envoy Gateway, and the tasky namespace and W5 binding |
 
 Both pipelines authenticate to Azure with OpenID Connect (workload identity federation). No client secrets are stored.
 
