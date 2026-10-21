@@ -2,7 +2,7 @@
 
 These weaknesses are **intentional**, as required by the Wiz Technical Exercise (V4). They exist only in this exercise environment, are accepted for the duration of the exercise, and are removed at teardown.
 
-Scanner findings for these items are suppressed only with an inline ignore that references the risk ID below. Any other finding fails the pipeline.
+Scanner findings for these items are suppressed only with an inline ignore that references the risk ID below. The only other suppressions are for exposure the brief requires (the public web app). Any other finding fails the pipeline.
 
 | ID | Weakness | Where | Technical exposure | Business impact | Remediation |
 |---|---|---|---|---|---|
@@ -37,5 +37,6 @@ Each suppression is an inline `#trivy:ignore:<ID>` comment directly above the re
 | Risk ID | Scanner | Check ID | File |
 |---|---|---|---|
 | OPS-1 | Trivy | AZU-0012 (expires 2026-12-31) | `infra/bootstrap/main.tf` |
-| W4 | Trivy | _to be added_ | `infra/network.tf` |
+| W4 | Trivy | AZU-0047, AZU-0050 | `infra/network.tf` |
+| R5, R18 (by design) | Trivy | AZU-0047: HTTP and HTTPS from the internet to the AKS subnet, the public entry for the web app (80 redirects to 443) | `infra/network.tf` |
 | W6 | Trivy | _to be added_ | `infra/storage.tf` |

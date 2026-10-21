@@ -10,8 +10,9 @@ Main Terraform for the exercise environment. Applied by `.github/workflows/infra
 | `naming.tf` | Prefix, resource names and tags used everywhere |
 | `main.tf` | Resource group |
 | `monitoring.tf` | Log Analytics workspace; subscription Activity Log to Log Analytics (control plane audit, R26) |
+| `network.tf` | VNet `10.10.0.0/16`; `snet-aks`, delegated `snet-apiserver`, `snet-db` (all private subnets, no default outbound access); NSGs: Mongo 27017 from `snet-aks` only, SSH from the internet (W4), 80 and 443 to the cluster load balancer (80 only redirects and answers ACME challenges) |
 | `keyvault.tf` | Key Vault for all secrets: RBAC only, firewall default Deny, purge protection; admin gets Key Vault Reader |
-| `diagnostics.tf` | Diagnostic settings for every supported resource |
+| `diagnostics.tf` | Diagnostic settings for every supported resource; NSGs with explicit categories (no metrics) |
 
 More files (network, AKS, Mongo VM, storage, ACR, policy) are added as each part is built.
 
