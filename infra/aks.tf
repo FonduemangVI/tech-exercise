@@ -53,6 +53,12 @@ resource "azurerm_kubernetes_cluster" "main" {
     }
   }
 
+  # Required from azurerm 5.0. Manual: the node pool above is the only one;
+  # no automatic node provisioning (it would need quota this lab lacks).
+  node_provisioning_profile {
+    mode = "Manual"
+  }
+
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.aks.id]
