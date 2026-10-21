@@ -6,10 +6,11 @@ Main Terraform for the exercise environment. Applied by `.github/workflows/infra
 |---|---|
 | `versions.tf` | Terraform and provider versions; partial `azurerm` backend (Entra ID auth) |
 | `providers.tf` | azurerm provider; OIDC in the pipeline, Azure CLI locally |
-| `variables.tf` | Subscription, region, tags, Log Analytics retention and daily cap |
+| `variables.tf` | Subscription, region, tags, admin identity and IP allow list, Log Analytics retention and daily cap |
 | `naming.tf` | Prefix, resource names and tags used everywhere |
 | `main.tf` | Resource group |
 | `monitoring.tf` | Log Analytics workspace; subscription Activity Log to Log Analytics (control plane audit, R26) |
+| `keyvault.tf` | Key Vault for all secrets: RBAC only, firewall default Deny, purge protection; admin gets Key Vault Reader |
 | `diagnostics.tf` | Diagnostic settings for every supported resource |
 
 More files (network, AKS, Mongo VM, storage, ACR, policy) are added as each part is built.
@@ -22,7 +23,11 @@ More files (network, AKS, Mongo VM, storage, ACR, policy) are added as each part
 | PR from this repo | Plan | `id-gh-pr` (read-only) | `terraform plan`, output in the job summary |
 | Push to `main`, or manual run | Apply | `id-gh-infra`, via `prod-infra` environment (approval) | Plan and apply |
 
-Plan and Apply are skipped until the bootstrap has been run and the repo variables exist.
+Plan and Apply are skipped until the bootstrap has been run and the repo variables exist. They also need the `ADMIN_IP_CIDRS` repo secret (set by `scripts/bootstrap-github.sh`).
+
+## Secrets
+
+Terraform never writes secret values. The Mongo VM generates its own credentials at first boot and writes them to Key Vault with its managed identity; AKS reads them through the Secrets Store CSI driver with workload identity. Nothing secret lands in state, VM custom data or pipeline logs. The vault has a public endpoint (no private endpoint in this design), accepted as OPS-2 in `docs/risk-register.md`.
 
 ## Local run
 

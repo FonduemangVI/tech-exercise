@@ -40,3 +40,19 @@ variable "law_daily_quota_gb" {
   type        = number
   default     = 1
 }
+
+variable "admin_object_id" {
+  description = "Entra ID object ID of the administrator (bootstrap output admin_object_id)."
+  type        = string
+}
+
+variable "admin_ip_cidrs" {
+  description = "Public IPs allowed through the Key Vault firewall (and later the AKS API server), in CIDR form. Set as a GitHub secret so it stays out of public run logs."
+  type        = list(string)
+  sensitive   = true
+
+  validation {
+    condition     = length(var.admin_ip_cidrs) > 0 && alltrue([for c in var.admin_ip_cidrs : can(cidrhost(c, 0))])
+    error_message = "admin_ip_cidrs must hold at least one valid CIDR, e.g. 203.0.113.10/32."
+  }
+}

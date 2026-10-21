@@ -43,3 +43,8 @@ output "github_environments" {
     app   = var.github_environment_app
   }
 }
+
+output "admin_object_id" {
+  description = "Object ID of whoever ran the bootstrap. infra/ grants this person read access to resources such as Key Vault metadata."
+  value       = data.azurerm_client_config.current.object_id
+}
