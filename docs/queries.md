@@ -29,9 +29,8 @@ StorageBlobLogs
 ## Key Vault: who read which secret
 
 ```kql
-AzureDiagnostics
-| where ResourceProvider == "MICROSOFT.KEYVAULT"
+AZKVAuditLogs
 | where OperationName in ("SecretGet", "SecretSet")
-| project TimeGenerated, OperationName, ResultSignature, CallerIPAddress, Secret = requestUri_s
+| project TimeGenerated, OperationName, ResultSignature, CallerIpAddress, Caller = tostring(Identity.claim.oid), Secret = RequestUri
 | order by TimeGenerated desc
 ```

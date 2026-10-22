@@ -153,3 +153,14 @@ resource "azurerm_role_assignment" "app_aks_tasky_writer" {
   role_definition_name = "Azure Kubernetes Service RBAC Writer"
   principal_id         = var.github_app_principal_id
 }
+
+# PR plans: refreshing the cluster calls listClusterUserCredential, which
+# Reader does not include. Local accounts are off, so the credential is a
+# kubeconfig with no secret in it (Entra ID login via kubelogin), and this
+# identity has no Kubernetes RBAC role: it cannot read or change anything
+# in the cluster.
+resource "azurerm_role_assignment" "pr_aks_user" {
+  scope                = azurerm_kubernetes_cluster.main.id
+  role_definition_name = "Azure Kubernetes Service Cluster User Role"
+  principal_id         = var.github_pr_principal_id
+}
