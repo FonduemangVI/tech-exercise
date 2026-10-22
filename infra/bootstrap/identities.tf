@@ -98,10 +98,34 @@ resource "azurerm_role_definition" "aks_command_invoke" {
   assignable_scopes = [data.azurerm_subscription.current.id]
 }
 
+# Custom role for the custom resources the app pipeline deploys (HTTPRoute,
+# SecretProviderClass). AKS RBAC Writer covers core resources only. Azure
+# has no per-CRD data actions for managed clusters, only customresources/*,
+# so this allows every custom resource type; infra/ assigns it on the tasky
+# namespace only, which keeps it out of every other namespace.
+resource "azurerm_role_definition" "aks_tasky_crds" {
+  name        = var.aks_tasky_crds_role_name
+  scope       = data.azurerm_subscription.current.id
+  description = "Read, write and delete custom resources through Azure RBAC for Kubernetes. Assign at namespace scope only."
+
+  permissions {
+    data_actions = [
+      "Microsoft.ContainerService/managedClusters/customresources/read",
+      "Microsoft.ContainerService/managedClusters/customresources/write",
+      "Microsoft.ContainerService/managedClusters/customresources/delete",
+    ]
+  }
+
+  assignable_scopes = [data.azurerm_subscription.current.id]
+}
+
 locals {
   assignable_role_guids = join(", ", concat(
     [for r in data.azurerm_role_definition.assignable : basename(r.id)],
-    [azurerm_role_definition.aks_command_invoke.role_definition_id],
+    [
+      azurerm_role_definition.aks_command_invoke.role_definition_id,
+      azurerm_role_definition.aks_tasky_crds.role_definition_id,
+    ],
   ))
 
   rbac_condition = <<-EOT

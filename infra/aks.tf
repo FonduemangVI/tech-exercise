@@ -158,6 +158,14 @@ resource "azurerm_role_assignment" "app_aks_tasky_writer" {
   principal_id         = var.github_app_principal_id
 }
 
+# RBAC Writer has no rights on custom resources; this custom role adds them
+# (for the HTTPRoute and SecretProviderClass), in tasky only.
+resource "azurerm_role_assignment" "app_aks_tasky_crds" {
+  scope                = "${azurerm_kubernetes_cluster.main.id}/namespaces/tasky"
+  role_definition_name = var.aks_tasky_crds_role_name
+  principal_id         = var.github_app_principal_id
+}
+
 # PR plans: refreshing the cluster calls listClusterUserCredential, which
 # Reader does not include. Local accounts are off, so the credential is a
 # kubeconfig with no secret in it (Entra ID login via kubelogin), and this

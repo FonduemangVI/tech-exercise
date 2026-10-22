@@ -119,6 +119,12 @@ variable "aks_command_invoke_role_name" {
   default     = "AKS Command Invoke (tech-exercise)"
 }
 
+variable "aks_tasky_crds_role_name" {
+  description = "Custom role created by infra/bootstrap for custom resources in tasky (HTTPRoute, SecretProviderClass)."
+  type        = string
+  default     = "AKS Tasky CRDs (tech-exercise)"
+}
+
 variable "github_pr_principal_id" {
   description = "Object ID of id-gh-pr (bootstrap output github_principal_ids.pr). Gets AcrPull for PR image builds."
   type        = string
