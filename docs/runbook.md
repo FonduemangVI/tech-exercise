@@ -15,7 +15,7 @@ Run everything from the repository root unless a step says otherwise.
 | Check | Command | Why |
 |---|---|---|
 | Allowed regions | `az policy assignment list -o table` | The lab subscription allows East US only ("Allowed Locations" policy): set `location = "eastus"` in both tfvars |
-| vCPU quota | `az vm list-usage -l <region> -o table` | 1 AKS node (2 vCPU) plus the VM (2 vCPU) need 4 |
+| vCPU quota | `az vm list-usage -l <region> -o table` | 2 AKS nodes (2 vCPU each) plus the VM (2 vCPU) need 6, plus 2 for an upgrade surge node |
 | Ubuntu 20.04 image | `az vm image list -p Canonical -f 0001-com-ubuntu-server-focal -s 20_04-lts-gen2 -l <region> --all -o table` | W1 needs it |
 | Existing policy assignments | `az policy assignment list -o table` | A tenant policy may block public blob access (W6). Defender for Cloud's auto-provisioning assignments may also change the cluster or the VM after apply: see "Day to day" |
 
@@ -194,16 +194,16 @@ US$200 limit per candidate, set by CloudLabs. It emails at 50%, 80% and 100% of 
 
 | Item | Per day |
 |---|---|
-| AKS node `Standard_D2s_v5` ($0.096/h) | $2.30 |
+| 2 AKS nodes `Standard_D2s_v5` ($0.096/h each) | $4.60 |
 | Mongo VM `Standard_B2s` ($0.0416/h) | $1.00 |
 | Standard Load Balancer ($0.025/h) | $0.60 |
 | 3 Standard public IPs ($0.005/h each) | $0.36 |
-| Disks (AKS OS disk, VM disk) | $0.42 |
+| Disks (2 AKS OS disks, VM disk) | $0.60 |
 | ACR Basic | $0.17 |
-| **Fixed, running** | **about $4.85** |
+| **Fixed, running** | **about $7.35** |
 | Log Analytics ingestion ($2.30/GB, capped at `law_daily_quota_gb`, default 1) | up to $2.30 |
 
-Running all the time this lasts about 4 weeks. Stopped between sessions it drops to about $1.55 a day (load balancer, IPs, disks and ACR keep charging). Stop, do not destroy: a rebuild costs time, uses up the shared Let's Encrypt limit and loses the certificate and the backup history.
+Running all the time, with logs at the cap, this lasts about 3 weeks. Stopped between sessions it drops to about $1.55 a day (load balancer, IPs, disks and ACR keep charging). Stop, do not destroy: a rebuild costs time, uses up the shared Let's Encrypt limit and loses the certificate and the backup history.
 
 ```bash
 # stop

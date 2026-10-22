@@ -4,9 +4,14 @@
 # Git here).
 #
 # Values that differ per deployment (registry name, client ID, hostname)
-# come from the cluster-settings ConfigMap, created at bootstrap by
-# scripts/bootstrap-flux.sh, and are substituted into every child
-# Kustomization (${ACR_LOGIN_SERVER} and so on).
+# come from the cluster-settings ConfigMap, created in flux-system at
+# bootstrap by scripts/bootstrap-flux.sh.
+#
+# substituteFrom only reads from the Kustomization's own namespace, and the
+# child Kustomizations live in their app namespaces (network, cert-manager).
+# So this Kustomization reads the ConfigMap and its own substitution writes
+# the values into each child's postBuild.substitute below. Add a variable
+# here and in bootstrap-flux.sh together.
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -22,6 +27,10 @@ spec:
     name: flux-system
     namespace: flux-system
   wait: false
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-settings
   patches:
     - # Defaults for all child Kustomizations
       patch: |-
@@ -32,9 +41,11 @@ spec:
         spec:
           deletionPolicy: WaitForTermination
           postBuild:
-            substituteFrom:
-              - kind: ConfigMap
-                name: cluster-settings
+            substitute:
+              ACR_LOGIN_SERVER: ${ACR_LOGIN_SERVER}
+              FLUX_CLIENT_ID: ${FLUX_CLIENT_ID}
+              APP_DNS_LABEL: ${APP_DNS_LABEL}
+              APP_HOSTNAME: ${APP_HOSTNAME}
           patches:
             - patch: |-
                 apiVersion: helm.toolkit.fluxcd.io/v2

@@ -102,7 +102,7 @@ variable "mongo_version" {
 }
 
 variable "aks_node_size" {
-  description = "AKS node size. One 2 vCPU node runs the platform and the app."
+  description = "AKS node size. Two 2 vCPU nodes run the platform and the app."
   type        = string
   default     = "Standard_D2s_v5"
 }
