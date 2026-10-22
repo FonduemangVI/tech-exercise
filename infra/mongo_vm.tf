@@ -12,7 +12,7 @@
 # passwords already in Key Vault, so tasky keeps working.
 
 locals {
-  mongo_private_ip = cidrhost(local.subnets.db, 10) # 10.10.8.10, fixed so the app URI never changes
+  mongo_private_ip = cidrhost(local.subnets.db, 10) # 10.10.0.90, fixed so the app URI never changes
 
   mongo_cloud_init = templatefile("${path.module}/vm/cloud-init.yaml.tftpl", {
     kv_uri           = azurerm_key_vault.main.vault_uri

@@ -29,6 +29,14 @@ resource "azurerm_key_vault" "main" {
   tenant_id           = data.azurerm_client_config.current.tenant_id
   sku_name            = "standard"
 
+  # The vault's network rules reference both subnets, and Azure rejects the
+  # vault while a subnet is still "Updating" (SubnetsNotProvisioned). The NSG
+  # associations are the last thing to touch the subnets, so wait for them.
+  depends_on = [
+    azurerm_subnet_network_security_group_association.aks,
+    azurerm_subnet_network_security_group_association.db,
+  ]
+
   rbac_authorization_enabled    = true
   purge_protection_enabled      = true
   soft_delete_retention_days    = 7

@@ -10,8 +10,8 @@ Main Terraform for the exercise environment. Applied by `.github/workflows/infra
 | `naming.tf` | Prefix, resource names and tags used everywhere |
 | `main.tf` | Resource group |
 | `monitoring.tf` | Log Analytics workspace; subscription Activity Log to Log Analytics (control plane audit, R26) |
-| `network.tf` | VNet `10.10.0.0/16`; `snet-aks`, delegated `snet-apiserver`, `snet-db` (all private subnets, no default outbound access); NSGs: Mongo 27017 from `snet-aks` only, SSH from the internet (W4), 80 and 443 to the cluster load balancer (80 only redirects and answers ACME challenges) |
-| `mongo_vm.tf` | Mongo VM: Ubuntu 20.04 (W1), MongoDB 6.0 (W2), Contributor on the subscription (W3), public IP; SSH key only, Trusted Launch, static private IP `10.10.8.10`; Storage Blob Data Contributor on `backups` and Key Vault Secrets Officer |
+| `network.tf` | VNet `10.10.0.0/24` (`snet-aks` /26, `snet-apiserver` /28, `snet-db` /28); `snet-aks`, delegated `snet-apiserver`, `snet-db` (all private subnets, no default outbound access); NSGs: Mongo 27017 from `snet-aks` only, SSH from the internet (W4), 80 and 443 to the cluster load balancer (80 only redirects and answers ACME challenges) |
+| `mongo_vm.tf` | Mongo VM: Ubuntu 20.04 (W1), MongoDB 6.0 (W2), Contributor on the subscription (W3), public IP; SSH key only, Trusted Launch, static private IP `10.10.0.90`; Storage Blob Data Contributor on `backups` and Key Vault Secrets Officer |
 | `vm/` | cloud-init template and the scripts it installs: `kv.sh` (Key Vault and Blob REST helpers using the VM identity), `mongo-bootstrap.sh` (first boot: install MongoDB, create users, store credentials in Key Vault, enable auth), `mongo-backup.sh` (daily dump to blob) |
 | `storage.tf` | Backup storage account (no shared keys, TLS 1.2, soft delete) and the `backups` container with anonymous read and list (W6) |
 | `acr.tf` | Container registry (Basic, admin user off, Entra ID only); AcrPull for `id-gh-pr`, AcrPush for `id-gh-app` |
