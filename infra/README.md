@@ -33,7 +33,7 @@ Main Terraform for the exercise environment. Applied by `.github/workflows/infra
 
 Plan and Apply are skipped until the bootstrap has been run and the repo variables exist. They also need the `ADMIN_IP_CIDRS` repo secret and the `VM_SSH_PUBLIC_KEY`, `AZURE_PRINCIPAL_ID_APP` and `AZURE_PRINCIPAL_ID_PR` repo variables (all set by `scripts/bootstrap-github.sh`).
 
-AKS upgrades: azurerm has no `max_unavailable`, so an upgrade needs a surge node, which a 4 vCPU quota cannot fit. Automatic Kubernetes upgrades are off for the life of the exercise and node OS patches apply in place (`Unmanaged`).
+AKS upgrades: automatic Kubernetes upgrades are off for the life of the exercise and node OS patches apply in place (`Unmanaged`), so nothing changes under the demo. (Planned for a 4 vCPU quota, where the surge node an upgrade needs would not fit; the lab allows 50, but fewer moving parts still wins.)
 
 ## Secrets
 

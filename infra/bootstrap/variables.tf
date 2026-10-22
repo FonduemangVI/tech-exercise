@@ -4,12 +4,12 @@ variable "subscription_id" {
 }
 
 variable "location" {
-  description = "Azure region, e.g. australiaeast."
+  description = "Azure region, e.g. eastus."
   type        = string
 }
 
 variable "location_short" {
-  description = "Short region code used in names, e.g. auea for australiaeast."
+  description = "Short region code used in names, e.g. eus for eastus."
   type        = string
 
   validation {

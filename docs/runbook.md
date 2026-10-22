@@ -14,9 +14,10 @@ Run everything from the repository root unless a step says otherwise.
 
 | Check | Command | Why |
 |---|---|---|
+| Allowed regions | `az policy assignment list -o table` | The lab subscription allows East US only ("Allowed Locations" policy): set `location = "eastus"` in both tfvars |
 | vCPU quota | `az vm list-usage -l <region> -o table` | 1 AKS node (2 vCPU) plus the VM (2 vCPU) need 4 |
 | Ubuntu 20.04 image | `az vm image list -p Canonical -f 0001-com-ubuntu-server-focal -s 20_04-lts-gen2 -l <region> --all -o table` | W1 needs it |
-| Existing policy assignments | `az policy assignment list -o table` | A tenant policy may block public blob access (W6) |
+| Existing policy assignments | `az policy assignment list -o table` | A tenant policy may block public blob access (W6). Defender for Cloud's auto-provisioning assignments may also change the cluster or the VM after apply: see "Day to day" |
 
 **SSH key:** `~/.ssh/wiz-exercise` (ed25519, used only for this exercise). Create it if missing:
 
@@ -48,11 +49,37 @@ The script makes me the required reviewer on `prod-infra` and restricts both env
 
 ## 2. Infrastructure (pipeline)
 
+**Review a plan first.** The `prod-infra` approval is asked for before the Apply job starts, so approving it never shows a plan. The read-only Plan job runs on pull requests only: open a PR (any change, e.g. a doc fix) and read the plan in the Plan job's summary. On an empty state it should only create resources; stop if it destroys or changes anything. It also proves `id-gh-pr` (Reader) can plan.
+
+Then merge the PR (if it touches `infra/**` the push starts Apply), or start Apply by hand:
+
 ```bash
 gh workflow run infra.yml --ref main
 ```
 
-Approve the Apply job in the `prod-infra` environment. The first apply takes the longest (AKS and the VM).
+Approve the Apply job in the `prod-infra` environment. Apply makes its own plan from the same code and inputs, so it matches the reviewed one. The first apply takes the longest (AKS and the VM).
+
+**Optional: plan locally.** Runs as me rather than the pipeline identity, so it tests less, but needs no PR. The pipeline does not use `infra.tfvars`; this writes it from the repo variables (the admin IP is a secret and cannot be read back, so it is detected again):
+
+```bash
+cp infra/backend.example.hcl infra/backend.hcl   # git-ignored; fill in from: terraform -chdir=infra/bootstrap output tfstate
+R=FonduemangVI/tech-exercise; v() { gh variable get "$1" --repo "$R"; }
+cat > infra/infra.tfvars <<EOT
+subscription_id         = "$(v AZURE_SUBSCRIPTION_ID)"
+location                = "$(v AZURE_LOCATION)"
+location_short          = "$(v AZURE_LOCATION_SHORT)"
+owner_tag               = "$(v OWNER_TAG)"
+admin_object_id         = "$(v ADMIN_OBJECT_ID)"
+admin_ip_cidrs          = ["$(curl -fsS https://api.ipify.org)/32"]
+github_pr_principal_id  = "$(v AZURE_PRINCIPAL_ID_PR)"
+github_app_principal_id = "$(v AZURE_PRINCIPAL_ID_APP)"
+vm_ssh_public_key       = "$(v VM_SSH_PUBLIC_KEY)"
+EOT
+terraform -chdir=infra init -backend-config=backend.hcl
+terraform -chdir=infra plan -var-file=infra.tfvars
+```
+
+`infra.tfvars` and `backend.hcl` are git-ignored. Never apply locally while the pipeline owns the environment: use the pipeline, so every change is reviewed and logged.
 
 **Done when:**
 
@@ -72,10 +99,10 @@ If the backup log says the first backup failed, cron retries at 02:00 UTC; run `
 
 ## 3. Images and app variables (laptop)
 
-Local Terraform access to the outputs:
+Local Terraform access to the outputs (reading outputs needs `backend.hcl` only, no `infra.tfvars`; skip the copy if step 2's local plan already made it):
 
 ```bash
-cp infra/backend.example.hcl infra/backend.hcl   # git-ignored; fill in from the bootstrap outputs
+cp infra/backend.example.hcl infra/backend.hcl   # git-ignored; fill in from: terraform -chdir=infra/bootstrap output tfstate
 terraform -chdir=infra init -backend-config=backend.hcl
 terraform -chdir=infra output
 ```
@@ -161,6 +188,40 @@ Once each check has run at least once, add it as a required status check on `mai
 
 `demo/demo.sh check` before every rehearsal and before the call. The run sheet and talk track are in [`demo/README.md`](../demo/README.md).
 
+## Cost
+
+US$200 limit per candidate, set by CloudLabs. It emails at 50%, 80% and 100% of the limit, and **at 100% the lab is terminated** unless the recruiter has approved an extension. Ask for an extension before reaching 80%, not after. Estimated from Azure retail prices for East US (checked 22 Oct 2026; the bill may differ):
+
+| Item | Per day |
+|---|---|
+| AKS node `Standard_D2s_v5` ($0.096/h) | $2.30 |
+| Mongo VM `Standard_B2s` ($0.0416/h) | $1.00 |
+| Standard Load Balancer ($0.025/h) | $0.60 |
+| 3 Standard public IPs ($0.005/h each) | $0.36 |
+| Disks (AKS OS disk, VM disk) | $0.42 |
+| ACR Basic | $0.17 |
+| **Fixed, running** | **about $4.85** |
+| Log Analytics ingestion ($2.30/GB, capped at `law_daily_quota_gb`, default 1) | up to $2.30 |
+
+Running all the time this lasts about 4 weeks. Stopped between sessions it drops to about $1.55 a day (load balancer, IPs, disks and ACR keep charging). Stop, do not destroy: a rebuild costs time, uses up the shared Let's Encrypt limit and loses the certificate and the backup history.
+
+```bash
+# stop
+az aks stop -g <resource_group_name> -n <aks_name>
+az vm deallocate -g <resource_group_name> -n "$(az vm list -g <resource_group_name> --query '[0].name' -o tsv)"
+# start, then demo/demo.sh check
+az aks start -g <resource_group_name> -n <aks_name>
+az vm start -g <resource_group_name> -n "$(az vm list -g <resource_group_name> --query '[0].name' -o tsv)"
+```
+
+After the first day, check what the logs cost (Log Analytics, Logs):
+
+```kql
+Usage | where TimeGenerated > ago(1d) | summarize GB = sum(Quantity) / 1000 by DataType | order by GB desc
+```
+
+If AKS audit logs dominate, lower `law_daily_quota_gb`.
+
 ## Day to day
 
 | Situation | What to do |
@@ -168,4 +229,5 @@ Once each check has run at least once, add it as a required status check on `mai
 | My public IP changed (`kubectl` and Key Vault access fail) | `gh secret set ADMIN_IP_CIDRS --body '["<new ip>/32"]'`, then run `infra.yml` and approve Apply |
 | Platform change (Flux, cert-manager, Envoy) | PR to `kubernetes/apps`; Flux applies it after merge |
 | App change | PR to `app/` or `kubernetes/apps/tasky/tasky/app/`; `app.yml` deploys after merge |
+| `plan` shows changes nobody made to the AKS cluster (Defender profile) or the VM (identity, extensions) | Defender for Cloud's auto-provisioning policies changed them. Decide per item: bring it into Terraform, or add `ignore_changes`; do not let each apply undo it |
 | New upstream version | Update the version in `scripts/import-images.sh` and the matching OCIRepository or HelmRelease, re-run the import, then merge |

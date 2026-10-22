@@ -4,12 +4,12 @@ variable "subscription_id" {
 }
 
 variable "location" {
-  description = "Azure region, e.g. australiaeast. Must match the bootstrap."
+  description = "Azure region, e.g. eastus. Must match the bootstrap."
   type        = string
 }
 
 variable "location_short" {
-  description = "Short region code used in names, e.g. auea. Must match the bootstrap."
+  description = "Short region code used in names, e.g. eus. Must match the bootstrap."
   type        = string
 
   validation {
@@ -74,7 +74,7 @@ variable "vm_admin_username" {
 }
 
 variable "vm_size" {
-  description = "Mongo VM size. B2s (2 vCPU) plus one 2 vCPU AKS node fits a 4 vCPU quota."
+  description = "Mongo VM size. B2s (2 vCPU) is enough for a small MongoDB and keeps cost down."
   type        = string
   default     = "Standard_B2s"
 }
@@ -102,7 +102,7 @@ variable "mongo_version" {
 }
 
 variable "aks_node_size" {
-  description = "AKS node size. One 2 vCPU node plus the 2 vCPU Mongo VM fits a 4 vCPU quota."
+  description = "AKS node size. One 2 vCPU node runs the platform and the app."
   type        = string
   default     = "Standard_D2s_v5"
 }
