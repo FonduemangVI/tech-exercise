@@ -13,7 +13,8 @@
 locals {
   github_issuer   = "https://token.actions.githubusercontent.com"
   github_audience = ["api://AzureADTokenExchange"]
-  github_repo     = "repo:${var.github_owner}/${var.github_repo}"
+  # Subject prefix from GitHub (immutable form with IDs), else the name-based form
+  github_repo = coalesce(var.github_oidc_subject_prefix, "repo:${var.github_owner}/${var.github_repo}")
 
   pipeline_identities = {
     infra = {

@@ -5,3 +5,7 @@ location_short  = "eus"
 github_owner    = "FonduemangVI"
 github_repo     = "tech-exercise"
 owner_tag       = "Michael Thomas"
+
+# OIDC subject prefix with owner and repo IDs (immutable subjects). Fill in from:
+# gh api repos/FonduemangVI/tech-exercise/actions/oidc/customization/sub --jq .sub_claim_prefix
+github_oidc_subject_prefix = "repo:FonduemangVI@15520607/tech-exercise@1426612616"
