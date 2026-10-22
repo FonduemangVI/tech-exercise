@@ -52,3 +52,16 @@
 | `kubectl run ... docker.io/library/nginx` | R27, preventative | Denied: only images from my ACR may run. It does not fix W5; admission control and RBAC are separate layers. |
 | `anonymous_reads`, then Alerts tab | R28, detective | The anonymous listings show up in the storage logs with the caller's IP, and the alert has fired. The brief needs the bucket public, so the control is knowing within minutes. The listing from Demo 1 may still be in transit (a few minutes); the morning's one will be there. Each listing fires two alerts: the 10-minute window overlaps the 5-minute schedule so late logs are not missed. |
 | Defender tab | | Separate findings for the VM, storage and the cluster. Nothing links them into the chains I just showed: that is the gap a graph-based tool like Wiz closes. |
+
+**Defender (free tier) against the weaknesses.** From the Microsoft cloud security benchmark policy results on 22 Oct 2026 (Defender's Recommendations page fills from these, up to 24 hours after resources are created; if it is still empty, show Policy > Compliance > Microsoft cloud security benchmark instead):
+
+| Weakness | Flagged? | Finding |
+|---|---|---|
+| W1 Ubuntu 20.04 | Indirectly | "System updates should be installed", "Linux machines should meet the Azure compute security baseline"; nothing says the OS is end of life |
+| W2 MongoDB 6.0 | No | No agent or paid plan to inventory software |
+| W3 VM identity Contributor on the subscription | No | Nothing on over-privileged managed identities |
+| W4 SSH open to the internet | Yes | "Management ports should be closed", "...protected with just-in-time network access" |
+| W5 cluster-admin binding | Partly | "Kubernetes clusters should disable automounting API credentials"; nothing on the binding itself |
+| W6 public backups | Yes | "Storage account public access should be disallowed" |
+
+Say: two of six are caught directly, each one on its own. None of them is linked to the others, so the chains (W4 to W1 to W3, app to W5 to secrets) are invisible. Some VM findings say the opposite of what was built: "Authentication to Linux machines should require SSH keys" is non-compliant although password login is off, because that check needs the Guest Configuration agent, which is not installed. Compliance results need reading, not counting.
