@@ -7,13 +7,16 @@
 # Overlay CNI: pod traffic leaves with the node IP, so rules that mean "from
 # the cluster" use the node subnet as the source.
 
+# Sized for what runs here, not for growth: Azure keeps 5 addresses in every
+# subnet, and with overlay CNI the pods do not use VNet addresses at all.
+# 10.10.0.96/27 and 10.10.0.128/25 stay free for later subnets.
 locals {
-  vnet_cidr = "10.10.0.0/16"
+  vnet_cidr = "10.10.0.0/24"
 
   subnets = {
-    aks       = "10.10.0.0/22" # AKS nodes (pods use the overlay range, not VNet IPs)
-    apiserver = "10.10.4.0/28" # AKS API server VNet Integration, delegated
-    db        = "10.10.8.0/24" # Mongo VM
+    aks       = "10.10.0.0/26"  # AKS nodes: 59 usable, room for upgrade surge nodes and internal load balancers
+    apiserver = "10.10.0.64/28" # AKS API server VNet Integration, delegated (/28 is the minimum)
+    db        = "10.10.0.80/28" # Mongo VM: 11 usable
   }
 }
 
