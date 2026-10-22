@@ -98,23 +98,21 @@ resource "azurerm_role_definition" "aks_command_invoke" {
   assignable_scopes = [data.azurerm_subscription.current.id]
 }
 
-# Custom role for the two CRDs the app pipeline deploys. AKS RBAC Writer
-# covers core resources only (Deployments, Services and so on), not custom
-# resources, so this adds exactly the HTTPRoute and SecretProviderClass the
-# tasky manifests contain. infra/ assigns it on the tasky namespace only.
+# Custom role for the custom resources the app pipeline deploys (HTTPRoute,
+# SecretProviderClass). AKS RBAC Writer covers core resources only. Azure
+# has no per-CRD data actions for managed clusters, only customresources/*,
+# so this allows every custom resource type; infra/ assigns it on the tasky
+# namespace only, which keeps it out of every other namespace.
 resource "azurerm_role_definition" "aks_tasky_crds" {
   name        = var.aks_tasky_crds_role_name
   scope       = data.azurerm_subscription.current.id
-  description = "Manage HTTPRoutes and SecretProviderClasses through Azure RBAC for Kubernetes. Assign at namespace scope."
+  description = "Read, write and delete custom resources through Azure RBAC for Kubernetes. Assign at namespace scope only."
 
   permissions {
     data_actions = [
-      "Microsoft.ContainerService/managedClusters/gateway.networking.k8s.io/httproutes/read",
-      "Microsoft.ContainerService/managedClusters/gateway.networking.k8s.io/httproutes/write",
-      "Microsoft.ContainerService/managedClusters/gateway.networking.k8s.io/httproutes/delete",
-      "Microsoft.ContainerService/managedClusters/secrets-store.csi.x-k8s.io/secretproviderclasses/read",
-      "Microsoft.ContainerService/managedClusters/secrets-store.csi.x-k8s.io/secretproviderclasses/write",
-      "Microsoft.ContainerService/managedClusters/secrets-store.csi.x-k8s.io/secretproviderclasses/delete",
+      "Microsoft.ContainerService/managedClusters/customresources/read",
+      "Microsoft.ContainerService/managedClusters/customresources/write",
+      "Microsoft.ContainerService/managedClusters/customresources/delete",
     ]
   }
 

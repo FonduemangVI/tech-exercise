@@ -70,7 +70,7 @@ variable "aks_command_invoke_role_name" {
 }
 
 variable "aks_tasky_crds_role_name" {
-  description = "Name of the custom role for the app pipeline's custom resources (HTTPRoute, SecretProviderClass). infra/ assigns it by this name."
+  description = "Name of the custom role for custom resources in tasky (HTTPRoute, SecretProviderClass). infra/ assigns it by this name."
   type        = string
   default     = "AKS Tasky CRDs (tech-exercise)"
 }

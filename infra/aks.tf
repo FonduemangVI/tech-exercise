@@ -158,8 +158,8 @@ resource "azurerm_role_assignment" "app_aks_tasky_writer" {
   principal_id         = var.github_app_principal_id
 }
 
-# RBAC Writer has no rights on custom resources; this custom role adds the
-# HTTPRoute and SecretProviderClass, in tasky only.
+# RBAC Writer has no rights on custom resources; this custom role adds them
+# (for the HTTPRoute and SecretProviderClass), in tasky only.
 resource "azurerm_role_assignment" "app_aks_tasky_crds" {
   scope                = "${azurerm_kubernetes_cluster.main.id}/namespaces/tasky"
   role_definition_name = var.aks_tasky_crds_role_name
