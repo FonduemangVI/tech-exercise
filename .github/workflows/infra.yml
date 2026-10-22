@@ -75,9 +75,15 @@ jobs:
           sudo install -m 0755 trivy /usr/local/bin/trivy
           trivy --version
 
-      # Fails on HIGH or CRITICAL. Deliberate weaknesses are suppressed only
-      # with inline ignores that reference docs/issue-register.md.
-      - name: Trivy IaC scan
+      # Report first (all severities, never fails), then the gate: --severity
+      # also filters the report, so a gate-only step hides lower findings.
+      # The gate fails on HIGH or CRITICAL. Deliberate weaknesses are
+      # suppressed only with inline ignores that reference
+      # docs/issue-register.md.
+      - name: Trivy IaC report (all severities)
+        run: trivy config --exit-code 0 infra
+
+      - name: Trivy IaC gate (HIGH and CRITICAL)
         run: trivy config --exit-code 1 --severity HIGH,CRITICAL infra
 
   plan:
