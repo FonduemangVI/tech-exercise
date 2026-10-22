@@ -75,6 +75,7 @@ variable "assignable_roles" {
   default = [
     "Contributor",
     "Storage Blob Data Contributor",
+    "Storage Blob Data Reader",
     "AcrPull",
     "AcrPush",
     "Network Contributor",
