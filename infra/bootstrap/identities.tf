@@ -98,10 +98,36 @@ resource "azurerm_role_definition" "aks_command_invoke" {
   assignable_scopes = [data.azurerm_subscription.current.id]
 }
 
+# Custom role for the two CRDs the app pipeline deploys. AKS RBAC Writer
+# covers core resources only (Deployments, Services and so on), not custom
+# resources, so this adds exactly the HTTPRoute and SecretProviderClass the
+# tasky manifests contain. infra/ assigns it on the tasky namespace only.
+resource "azurerm_role_definition" "aks_tasky_crds" {
+  name        = var.aks_tasky_crds_role_name
+  scope       = data.azurerm_subscription.current.id
+  description = "Manage HTTPRoutes and SecretProviderClasses through Azure RBAC for Kubernetes. Assign at namespace scope."
+
+  permissions {
+    data_actions = [
+      "Microsoft.ContainerService/managedClusters/gateway.networking.k8s.io/httproutes/read",
+      "Microsoft.ContainerService/managedClusters/gateway.networking.k8s.io/httproutes/write",
+      "Microsoft.ContainerService/managedClusters/gateway.networking.k8s.io/httproutes/delete",
+      "Microsoft.ContainerService/managedClusters/secrets-store.csi.x-k8s.io/secretproviderclasses/read",
+      "Microsoft.ContainerService/managedClusters/secrets-store.csi.x-k8s.io/secretproviderclasses/write",
+      "Microsoft.ContainerService/managedClusters/secrets-store.csi.x-k8s.io/secretproviderclasses/delete",
+    ]
+  }
+
+  assignable_scopes = [data.azurerm_subscription.current.id]
+}
+
 locals {
   assignable_role_guids = join(", ", concat(
     [for r in data.azurerm_role_definition.assignable : basename(r.id)],
-    [azurerm_role_definition.aks_command_invoke.role_definition_id],
+    [
+      azurerm_role_definition.aks_command_invoke.role_definition_id,
+      azurerm_role_definition.aks_tasky_crds.role_definition_id,
+    ],
   ))
 
   rbac_condition = <<-EOT

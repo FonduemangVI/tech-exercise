@@ -20,14 +20,14 @@ The repo uses GitHub's immutable OIDC subjects, which name the owner and repo by
 |---|---|---|---|
 | `id-gh-infra` | Contributor | Subscription | Creates the environment |
 | `id-gh-infra` | Resource Policy Contributor | Subscription | Contributor cannot write policy assignments |
-| `id-gh-infra` | Role Based Access Control Administrator, **with a condition** | Subscription | Creates role assignments, but only for the roles in `var.assignable_roles` plus the custom command invoke role. It cannot grant Owner, User Access Administrator or RBAC Administrator. |
+| `id-gh-infra` | Role Based Access Control Administrator, **with a condition** | Subscription | Creates role assignments, but only for the roles in `var.assignable_roles` plus the two custom roles. It cannot grant Owner, User Access Administrator or RBAC Administrator. |
 | `id-gh-infra` | Storage Blob Data Contributor | `tfstate` container | Read and write state |
 | `id-gh-pr` | Reader | Subscription | Plan only |
 | `id-gh-pr` | Storage Blob Data Contributor | `tfstate` container | Read state and take the plan lock |
 | `id-gh-app` | None here | | AcrPush and AKS roles are granted in `infra/` once ACR and AKS exist |
 | You | Storage Blob Data Contributor | State storage account | Run `infra/` locally if needed |
 
-Custom role **AKS Command Invoke (tech-exercise)**: `managedClusters/read`, `runCommand/action` and `commandResults/read` only. The one built-in role with `runCommand` (AKS Cluster Admin Role) also lists the cluster admin credential. Commands run as the caller, so Kubernetes RBAC still applies. Creating it needs `roleDefinitions/write`, which the person running the bootstrap has (Owner or User Access Administrator) and the pipeline does not.
+Custom role **AKS Command Invoke (tech-exercise)**: `managedClusters/read`, `runCommand/action` and `commandResults/read` only. The one built-in role with `runCommand` (AKS Cluster Admin Role) also lists the cluster admin credential. Commands run as the caller, so Kubernetes RBAC still applies. Custom role **AKS Tasky CRDs (tech-exercise)**: read, write and delete on HTTPRoutes and SecretProviderClasses only (data actions), assigned in `infra/` on the `tasky` namespace. AKS RBAC Writer covers core resources but no custom resources. Creating either role needs `roleDefinitions/write`, which the person running the bootstrap has (Owner or User Access Administrator) and the pipeline does not.
 
 Pull requests from forks cannot request an OIDC token, so only branches in this repository can use `id-gh-pr`.
 
