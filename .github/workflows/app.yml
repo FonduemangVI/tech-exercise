@@ -48,9 +48,14 @@ jobs:
           tar -xzf "$tarball" trivy
           sudo install -m 0755 trivy /usr/local/bin/trivy
 
-      # W5 (cluster-admin binding) is reported as MEDIUM, below the gate,
-      # and stays visible in the output on purpose.
-      - name: Trivy Kubernetes manifest scan
+      # Two steps because --severity also filters the report: with only
+      # HIGH,CRITICAL, lower findings are hidden, not just let through.
+      # The first step shows everything, including W5 (KSV-0111, MEDIUM,
+      # the cluster-admin binding), and never fails. The second is the gate.
+      - name: Trivy Kubernetes manifest report (all severities)
+        run: trivy config --exit-code 0 kubernetes
+
+      - name: Trivy Kubernetes manifest gate (HIGH and CRITICAL)
         run: trivy config --exit-code 1 --severity HIGH,CRITICAL kubernetes
 
   build:
