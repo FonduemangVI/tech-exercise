@@ -2,11 +2,11 @@
 
 `demo.sh` runs every command shown in the presentation. Each step prints the command, waits for Enter, then runs it. Nothing is typed live.
 
-**Status: draft.** Written before the lab existed. Steps marked "lab check" in `demo.sh` (the MongoDB query and the two Log Analytics queries) have not been run against the live environment. Finalise during rehearsal 1: fix commands, trim output, time each demo.
+**Status:** run end to end against the lab on 22 Oct 2026. Time each demo in rehearsal 1.
 
 ## Before the call
 
-1. `demo/demo.sh check`: Azure and GitHub logins, Terraform outputs, API server reachable from my IP, app answers on HTTPS, SSH to the VM, every running image from ACR. Fix any FAIL first (a changed public IP is the likely one: see `docs/runbook.md`, day to day).
+1. `demo/demo.sh check`, about 20 minutes before the call: Azure and GitHub logins, the `log-analytics` CLI extension, Terraform outputs, API server reachable from my IP, app answers on HTTPS, SSH to the VM, every image outside the excluded namespaces from ACR. Fix any FAIL first (a changed public IP is the likely one: see `docs/runbook.md`, day to day). Then run `backup_list` once (or `demo/demo.sh 1` up to that step), so a W6 alert from that morning is already showing in Demo 2: storage logs and the alert lag the listing by up to 10 minutes.
 2. Browser tabs open, in this order: app, GitHub Actions (latest `app.yml` run), Log Analytics Logs, Monitor > Alerts, Defender for Cloud recommendations.
 3. Terminal: large font, dark theme, the window shared rather than the whole screen.
 4. Screenshots of every step in the hidden backup section of the slides, in case the environment or the network fails.
@@ -37,7 +37,7 @@
 | `cat /app/wizexercise.txt` | R16 | The file is in the image and in the running container. It is copied in the Dockerfile and checked in the pipeline before push. |
 | `env_sources` | R15 | `MONGODB_URI` reaches the app as an env var, from a Secret synced from Key Vault. No secret in Git, in the pipeline or in Terraform state. |
 | `mongo_todos` | R6, R20 | The todo I just added is in MongoDB on the VM. Note I could SSH in from here: that is W4, coming up. |
-| `images` | | Every image comes from ACR. The policy in Demo 2 enforces this. |
+| `images` | | Every image comes from ACR. The count at the end is AKS's own add-ons, from Microsoft's registry, in the namespaces the policy excludes. The policy in Demo 2 enforces this. |
 | `backup_list` | R12, W6 | Dated daily backups, listed with no credentials. Anyone on the internet can do this. (This also triggers the alert in Demo 2.) |
 | GitHub Actions tab | R22-R25 | Two pipelines, OIDC with no stored secrets, Trivy gates on IaC, manifests and the image. |
 
@@ -48,7 +48,7 @@
 | `auth can-i --list` | W5 | The app's service account can do anything: `*` on `*`. |
 | `can-i get secrets --all-namespaces` | W5 | Including every Secret in the cluster, such as the Mongo connection string (keys shown, not values). One app bug becomes a cluster compromise. |
 | `vm_roles` | W3 | The VM identity is Contributor on the whole subscription. With W4 (SSH open) and W1/W2 (outdated OS and database), one compromised VM controls everything. |
-| `audit_role_assignments` | R26, audit | Every change is attributable: the pipeline identity created that role assignment, from a reviewed PR. |
+| `audit_role_assignments` | R26, audit | Every change is attributable: the infra pipeline identity created the W3 grant, from a reviewed PR, at this time. It reads the Activity Log itself: the Log Analytics copy only starts when its diagnostic setting was created, and the rebuild granted W3 just before that (a gap worth admitting if asked). |
 | `kubectl run ... docker.io/library/nginx` | R27, preventative | Denied: only images from my ACR may run. It does not fix W5; admission control and RBAC are separate layers. |
-| `anonymous_reads`, then Alerts tab | R28, detective | The listing from Demo 1 shows up in the storage logs, and the alert has fired. The brief needs the bucket public, so the control is knowing within minutes. |
+| `anonymous_reads`, then Alerts tab | R28, detective | The anonymous listings show up in the storage logs with the caller's IP, and the alert has fired. The brief needs the bucket public, so the control is knowing within minutes. The listing from Demo 1 may still be in transit (a few minutes); the morning's one will be there. Each listing fires two alerts: the 10-minute window overlaps the 5-minute schedule so late logs are not missed. |
 | Defender tab | | Separate findings for the VM, storage and the cluster. Nothing links them into the chains I just showed: that is the gap a graph-based tool like Wiz closes. |

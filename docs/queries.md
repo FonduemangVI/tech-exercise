@@ -6,6 +6,8 @@ Run in the Log Analytics workspace (`wiz-ex-<region>-law`), Logs blade. Paste, d
 
 Every change in the subscription is attributable. This shows the pipeline identity created the role assignment, from a reviewed PR.
 
+The Log Analytics copy of the Activity Log only holds events from when its diagnostic setting was created. In this build the W3 grant came just before that (the setting failed on the first apply and was created on the re-run), so this query does not find it; `demo/demo.sh` reads the Activity Log itself (`az monitor activity-log list`, 90 days) instead. For a grant made after the setting existed, the query below works.
+
 ```kql
 AzureActivity
 | where OperationNameValue =~ "Microsoft.Authorization/roleAssignments/write"
