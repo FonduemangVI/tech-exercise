@@ -11,8 +11,13 @@ spec:
     type: Kubernetes
     kubernetes:
       envoyDeployment:
-        replicas: 1 # single node
+        replicas: 1 # enough for the exercise; the app has one replica too
         container:
+          # The chart's global.imageRegistry covers the controller and the
+          # shutdown-manager sidecar, not the proxy: the controller picks the
+          # proxy image itself (docker.io by default). Keep the tag in step
+          # with ENVOY_PROXY_TAG in scripts/import-images.sh.
+          image: ${ACR_LOGIN_SERVER}/envoyproxy/envoy:distroless-v1.39.1
           resources:
             requests:
               cpu: 50m
