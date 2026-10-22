@@ -11,12 +11,15 @@ spec:
   values:
     instance:
       distribution:
-        # The version embedded in flux-operator 0.61.0. With no artifact set,
-        # the operator uses its built-in manifests: no download from ghcr.io.
+        # The version embedded in flux-operator 0.61.0
         version: "2.9.6"
         registry: ${ACR_LOGIN_SERVER}/fluxcd
         variant: upstream-alpine # required for a mirror registry
-        artifact: ""
+        # Install manifests (YAML, not images), pinned to the operator's
+        # release. The chart cannot leave this field out: an empty value
+        # renders as null, which the CRD rejects. Images still come from ACR
+        # (registry above); only these manifests are read from ghcr.io.
+        artifact: oci://ghcr.io/controlplaneio-fluxcd/flux-operator-manifests:v0.61.0
       cluster:
         type: azure
       # Three controllers only: nothing here needs notifications or image
