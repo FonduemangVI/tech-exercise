@@ -54,6 +54,8 @@ resource "azurerm_subnet" "apiserver" {
     name = "aks-apiserver"
     service_delegation {
       name = "Microsoft.ContainerService/managedClusters"
+      # Azure adds this action itself; listing it stops a permanent plan diff
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
     }
   }
 }
