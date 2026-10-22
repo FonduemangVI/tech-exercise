@@ -41,10 +41,14 @@ resource "azurerm_kubernetes_cluster" "main" {
   automatic_upgrade_channel = null
   node_os_upgrade_channel   = "Unmanaged"
 
+  # Two nodes: one D2s_v5 has about 1.9 vCPU to reserve, and the AKS
+  # add-ons, Gatekeeper and Flux already take 97% of it before Envoy,
+  # cert-manager and the app. A second node also gives rolling updates
+  # somewhere to go.
   default_node_pool {
     name                        = "system"
     vm_size                     = var.aks_node_size
-    node_count                  = 1
+    node_count                  = 2
     vnet_subnet_id              = azurerm_subnet.aks.id
     os_disk_size_gb             = 64
     temporary_name_for_rotation = "systemtmp"
