@@ -33,10 +33,11 @@ resource "azurerm_kubernetes_cluster" "main" {
   kubernetes_version  = var.kubernetes_version
   sku_tier            = "Free"
 
-  # Upgrades: azurerm has no max_unavailable, so every upgrade adds a surge
-  # node. With a 4 vCPU quota (this node plus the Mongo VM) that surge node
-  # cannot start, so automatic upgrades are off for the life of the
-  # exercise and node OS patches apply in place (Unmanaged: no reimage).
+  # Upgrades: automatic upgrades are off for the life of the exercise and
+  # node OS patches apply in place (Unmanaged: no reimage), so nothing
+  # changes under the demo. Planned with a 4 vCPU quota in mind (azurerm
+  # has no max_unavailable, so every upgrade adds a surge node); the lab
+  # turned out to allow 50 vCPUs, but fewer moving parts still wins.
   automatic_upgrade_channel = null
   node_os_upgrade_channel   = "Unmanaged"
 

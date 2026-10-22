@@ -12,6 +12,8 @@ Run once, from a laptop, before any pipeline can work. It creates:
 
 Each identity has one federated credential that trusts a single GitHub OIDC subject. No client secrets exist.
 
+The repo uses GitHub's immutable OIDC subjects, which name the owner and repo by ID (`repo:FonduemangVI@15520607/tech-exercise@1426612616:...`), so a deleted and recreated repo or account with the same name cannot use these identities. Set `github_oidc_subject_prefix` from `gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix`; without it the credentials use the name-based form and token exchange fails with AADSTS700213.
+
 ## Permissions
 
 | Identity | Role | Scope | Why |

@@ -4,12 +4,12 @@ variable "subscription_id" {
 }
 
 variable "location" {
-  description = "Azure region, e.g. australiaeast."
+  description = "Azure region, e.g. eastus."
   type        = string
 }
 
 variable "location_short" {
-  description = "Short region code used in names, e.g. auea for australiaeast."
+  description = "Short region code used in names, e.g. eus for eastus."
   type        = string
 
   validation {
@@ -26,6 +26,24 @@ variable "github_owner" {
 variable "github_repo" {
   description = "GitHub repository name."
   type        = string
+}
+
+variable "github_oidc_subject_prefix" {
+  description = <<-EOT
+    Start of the OIDC subject claim GitHub puts in this repo's tokens. With
+    immutable subjects (the default for new repos) it carries the owner and
+    repo IDs, e.g. repo:Owner@123/repo@456, so a deleted and recreated repo
+    with the same name cannot use these identities. Read it with:
+    gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix
+    Null falls back to the name-based form repo:<owner>/<repo>.
+  EOT
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.github_oidc_subject_prefix == null || can(regex("^repo:[^:]+$", var.github_oidc_subject_prefix))
+    error_message = "github_oidc_subject_prefix must look like repo:<owner>[@id]/<repo>[@id], with no trailing colon."
+  }
 }
 
 variable "github_environment_infra" {
