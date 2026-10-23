@@ -114,6 +114,8 @@ resource "azurerm_role_definition" "aks_command_invoke" {
 # has no per-CRD data actions for managed clusters, only customresources/*,
 # so this allows every custom resource type; infra/ assigns it on the tasky
 # namespace only, which keeps it out of every other namespace.
+# Accepted exception OPS-4 (docs/issue-register.md): every type includes Flux
+# Kustomizations, which Flux applies as cluster-admin.
 resource "azurerm_role_definition" "aks_tasky_crds" {
   name        = var.aks_tasky_crds_role_name
   scope       = data.azurerm_subscription.current.id
