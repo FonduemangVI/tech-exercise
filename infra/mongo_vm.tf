@@ -60,6 +60,11 @@ resource "azurerm_linux_virtual_machine" "mongo" {
   admin_username                  = var.vm_admin_username
   disable_password_authentication = true # also ssh_pwauth: false in cloud-init
 
+  # Temp disk and cache encrypted on the host as well (Defender). Needs the
+  # Microsoft.Compute/EncryptionAtHost feature; turning it on deallocates
+  # and restarts the VM, the disk and data stay.
+  encryption_at_host_enabled = true
+
   admin_ssh_key {
     username   = var.vm_admin_username
     public_key = var.vm_ssh_public_key

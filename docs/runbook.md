@@ -17,6 +17,7 @@ Run everything from the repository root unless a step says otherwise.
 | Allowed regions | `az policy assignment list -o table` | The lab subscription allows East US only ("Allowed Locations" policy): set `location = "eastus"` in both tfvars |
 | vCPU quota | `az vm list-usage -l <region> -o table` | 2 AKS nodes (2 vCPU each) plus the VM (2 vCPU) need 6, plus 2 for an upgrade surge node |
 | Ubuntu 20.04 image | `az vm image list -p Canonical -f 0001-com-ubuntu-server-focal -s 20_04-lts-gen2 -l <region> --all -o table` | W1 needs it |
+| Encryption at host | `az feature register --namespace Microsoft.Compute --name EncryptionAtHost`, wait for `az feature show --namespace Microsoft.Compute --name EncryptionAtHost --query properties.state` to say `Registered` (10 to 20 minutes), then `az provider register --namespace Microsoft.Compute` | The VM and the AKS nodes set encryption at host; without the feature the apply fails |
 | Existing policy assignments | `az policy assignment list -o table` | A tenant policy may block public blob access (W6). Defender for Cloud's auto-provisioning assignments may also change the cluster or the VM after apply: see "Day to day" |
 
 **SSH key:** `~/.ssh/wiz-exercise` (ed25519, used only for this exercise). Create it if missing:
