@@ -24,7 +24,7 @@ concurrency:
   cancel-in-progress: false # never cancel a running deploy
 
 env:
-  TRIVY_VERSION: "0.76.0"
+  TRIVY_VERSION: "0.76.1"
   IMAGE_REPOSITORY: tasky
 
 jobs:
