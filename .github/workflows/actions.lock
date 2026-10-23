@@ -11,6 +11,8 @@ workflows:
     '.github/workflows/infra.yml':
         - 'actions/checkout@v7.0.1'
         - 'hashicorp/setup-terraform@v4.0.1'
+    '.github/workflows/rescan.yml':
+        - 'azure/login@v3.1.0'
 dependencies:
     'actions/checkout@v7.0.1':
         ref: 'v7.0.1'
