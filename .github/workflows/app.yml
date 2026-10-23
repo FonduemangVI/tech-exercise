@@ -107,9 +107,14 @@ jobs:
           tar -xzf "$tarball" trivy
           sudo install -m 0755 trivy /usr/local/bin/trivy
 
-      # Fails on HIGH or CRITICAL findings that have a fix available
-      - name: Trivy image scan
-        run: trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed "$IMAGE"
+      # Report every finding (never fails), then the gate: HIGH or CRITICAL
+      # with a fix available. Two steps because --severity also hides lower
+      # findings from the report.
+      - name: Trivy image report (all severities)
+        run: trivy image --exit-code 0 "$IMAGE"
+
+      - name: Trivy image gate (HIGH and CRITICAL, fixable)
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --skip-db-update "$IMAGE"
 
   deploy:
     name: Build, push and deploy
@@ -159,9 +164,12 @@ jobs:
           tar -xzf "$tarball" trivy
           sudo install -m 0755 trivy /usr/local/bin/trivy
 
-      # Same gate as the PR: nothing is pushed unless the scan passes
-      - name: Trivy image scan
-        run: trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed "$IMAGE"
+      # Same report and gate as the PR: nothing is pushed unless the gate passes
+      - name: Trivy image report (all severities)
+        run: trivy image --exit-code 0 "$IMAGE"
+
+      - name: Trivy image gate (HIGH and CRITICAL, fixable)
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --skip-db-update "$IMAGE"
 
       - name: Push
         run: docker push "$IMAGE"

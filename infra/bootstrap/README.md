@@ -8,7 +8,7 @@ Run once, from a laptop, before any pipeline can work. It creates:
 | Storage account + `tfstate` container | Remote state for `infra/`. Shared keys disabled (Entra ID only), versioning and soft delete on, no public access |
 | `id-gh-infra` | Applies `infra/` from `main` via the `prod-infra` environment (approval required) |
 | `id-gh-app` | Pushes images and deploys tasky from `main` via the `prod-app` environment |
-| `id-gh-pr` | Read-only identity for plan and build jobs on pull requests |
+| `id-gh-pr` | Read-only identity for plan and build jobs on pull requests, and for the plan on `main` that Apply waits behind (second federated credential, subject `ref:refs/heads/main`) |
 
 Each identity has one federated credential that trusts a single GitHub OIDC subject. No client secrets exist.
 
