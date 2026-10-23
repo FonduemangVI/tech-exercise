@@ -52,6 +52,11 @@ resource "azurerm_kubernetes_cluster" "main" {
     vnet_subnet_id              = azurerm_subnet.aks.id
     os_disk_size_gb             = 64
     temporary_name_for_rotation = "systemtmp"
+    # Encrypts the temp and cache disks on the host too (Defender: "encryption
+    # at host"). Needs the Microsoft.Compute/EncryptionAtHost feature on the
+    # subscription. Changing it rotates the pool through systemtmp: nodes are
+    # replaced, the cluster is not.
+    host_encryption_enabled = true
 
     upgrade_settings {
       max_surge = "1"
