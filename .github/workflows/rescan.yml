@@ -1,0 +1,82 @@
+name: rescan
+
+# R25, continuous: new CVEs are published against images that have not
+# changed, so "it passed the gate when it was pushed" is not "it is safe
+# today". Every day this rescans the newest tasky image in ACR (the one
+# running, unless the last deploy failed after its push) with the same
+# report and gate as app.yml. A failed run is the alert: GitHub notifies on
+# a failed scheduled workflow. The fix is a rebuild on patched inputs
+# (scripts/import-images.sh --force, then a run of app.yml).
+#
+# Read-only: id-gh-pr (AcrPull), trusted on main; no environment, no push.
+on:
+  schedule:
+    - cron: "17 6 * * *" # daily, 06:17 UTC (off the hour: runs on the hour are often delayed)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rescan
+  cancel-in-progress: true
+
+env:
+  TRIVY_VERSION: "0.76.1"
+
+jobs:
+  rescan:
+    name: Rescan the deployed image
+    if: vars.AZURE_CLIENT_ID_PR != '' && vars.ACR_NAME != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: azure/login@v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID_PR }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to ACR
+        run: az acr login --name "${{ vars.ACR_NAME }}"
+
+      # Only main pushes tasky images (PR builds are never pushed), so the
+      # newest tag is the latest deploy.
+      - name: Find the newest image
+        id: image
+        env:
+          ACR_NAME: ${{ vars.ACR_NAME }}
+          ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+        run: |
+          set -euo pipefail
+          tag="$(az acr repository show-tags --name "$ACR_NAME" --repository tasky \
+            --orderby time_desc --top 1 -o tsv --only-show-errors)"
+          [[ -n "$tag" ]] || { echo "No tasky image in ACR" >&2; exit 1; }
+          echo "image=$ACR_LOGIN_SERVER/tasky:$tag" >> "$GITHUB_OUTPUT"
+          echo "### Rescanning tasky:$tag" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install Trivy
+        run: |
+          set -euo pipefail
+          base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          tarball="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          checksums="trivy_${TRIVY_VERSION}_checksums.txt"
+          curl -fsSLO "$base/$tarball"
+          curl -fsSLO "$base/$checksums"
+          grep " ${tarball}$" "$checksums" | sha256sum -c -
+          tar -xzf "$tarball" trivy
+          sudo install -m 0755 trivy /usr/local/bin/trivy
+
+      # Same two steps as app.yml: everything reported, the gate fails on
+      # HIGH or CRITICAL with a fix available, with today's database.
+      - name: Trivy image report (all severities)
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: trivy image --exit-code 0 "$IMAGE"
+
+      - name: Trivy image gate (HIGH and CRITICAL, fixable)
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --skip-db-update "$IMAGE"

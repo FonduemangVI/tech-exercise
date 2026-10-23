@@ -122,9 +122,12 @@ jobs:
   # that make up the app: its source and its manifests. A workflow-only
   # change (a tool bump) deploys nothing. Manual runs always deploy.
   #
-  # The image tag is the git tree hash of app/: the same source always gives
-  # the same tag, so a manifest-only change reuses the image and an
-  # unchanged app is never rebuilt or restarted.
+  # The image tag is a hash of everything the image is built from: the git
+  # tree of app/ (source, go.sum, Dockerfile) and the digests of the base
+  # images in ACR. Same inputs, same tag: a manifest-only change reuses the
+  # image and an unchanged app is never rebuilt or restarted. A base image
+  # re-imported under the same tag (scripts/import-images.sh --force)
+  # changes its digest, so the tag, so the app is rebuilt on it.
   changes:
     name: Check for changes
     needs: manifests
@@ -135,14 +138,45 @@ jobs:
     permissions:
       contents: read
       deployments: read
+      id-token: write
     outputs:
       deploy: ${{ steps.check.outputs.deploy }}
-      image_tag: ${{ steps.check.outputs.image_tag }}
+      image_tag: ${{ steps.tag.outputs.image_tag }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0 # needs the last deployed commit for the diff
+
+      # id-gh-pr (read-only, trusted on main): reads base image digests
+      - uses: azure/login@v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID_PR }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Image tag from the build inputs
+        id: tag
+        env:
+          ACR_NAME: ${{ vars.ACR_NAME }}
+        run: |
+          set -euo pipefail
+          # Base images: the ARG defaults after ${REGISTRY}/ in the Dockerfile
+          mapfile -t bases < <(grep -oP '^ARG \w+=\$\{REGISTRY\}/\K\S+' app/Dockerfile)
+          [[ ${#bases[@]} -gt 0 ]] || { echo "No base images found in app/Dockerfile" >&2; exit 1; }
+          inputs="$(git rev-parse HEAD:app)"
+          for b in "${bases[@]}"; do
+            digest="$(az acr manifest show-metadata --registry "$ACR_NAME" --name "$b" --query digest -o tsv --only-show-errors)"
+            echo "$b  $digest" >> "$GITHUB_STEP_SUMMARY"
+            inputs+=$'\n'"$b@$digest"
+          done
+          tag="$(sha256sum <<<"$inputs" | cut -c1-40)"
+          echo "image_tag=$tag" >> "$GITHUB_OUTPUT"
+          if az acr manifest show-metadata --registry "$ACR_NAME" --name "tasky:$tag" --only-show-errors >/dev/null 2>&1; then
+            echo "image_exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "image_exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Compare with the last deployment
         id: check
@@ -150,10 +184,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           EVENT: ${{ github.event_name }}
+          IMAGE_EXISTS: ${{ steps.tag.outputs.image_exists }}
         run: |
           set -euo pipefail
           paths=(app kubernetes/apps/tasky/tasky/app)
-          echo "image_tag=$(git rev-parse HEAD:app)" >> "$GITHUB_OUTPUT"
 
           # Newest first; the first deployment whose latest status is success
           last=""
@@ -168,8 +202,10 @@ jobs:
             deploy=true reason="manual run"
           elif [[ -z "$last" ]] || ! git cat-file -e "$last^{commit}" 2>/dev/null; then
             deploy=true reason="no previous successful deployment found"
+          elif [[ "$IMAGE_EXISTS" != true ]]; then
+            deploy=true reason="no image for these inputs yet (app source or a base image changed)"
           elif git diff --quiet "$last" HEAD -- "${paths[@]}"; then
-            deploy=false reason="no change to ${paths[*]} since ${last:0:7}"
+            deploy=false reason="no change to ${paths[*]} or the base images since ${last:0:7}"
           else
             deploy=true reason="changes since ${last:0:7}"
           fi
