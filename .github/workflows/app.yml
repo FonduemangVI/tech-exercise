@@ -116,20 +116,87 @@ jobs:
       - name: Trivy image gate (HIGH and CRITICAL, fixable)
         run: trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --skip-db-update "$IMAGE"
 
-  deploy:
-    name: Build, push and deploy
+  # Decides whether main has anything to deploy, before any approval is
+  # asked for. Compares this commit with the last successful prod-app
+  # deployment (GitHub records one per environment job) over the two paths
+  # that make up the app: its source and its manifests. A workflow-only
+  # change (a tool bump) deploys nothing. Manual runs always deploy.
+  #
+  # The image tag is the git tree hash of app/: the same source always gives
+  # the same tag, so a manifest-only change reuses the image and an
+  # unchanged app is never rebuilt or restarted.
+  changes:
+    name: Check for changes
     needs: manifests
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      github.ref == 'refs/heads/main' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: read
+    outputs:
+      deploy: ${{ steps.check.outputs.deploy }}
+      image_tag: ${{ steps.check.outputs.image_tag }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # needs the last deployed commit for the diff
+
+      - name: Compare with the last deployment
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          paths=(app kubernetes/apps/tasky/tasky/app)
+          echo "image_tag=$(git rev-parse HEAD:app)" >> "$GITHUB_OUTPUT"
+
+          # Newest first; the first deployment whose latest status is success
+          last=""
+          for id in $(gh api "repos/$REPO/deployments?environment=prod-app&per_page=30" --jq '.[].id'); do
+            if [[ "$(gh api "repos/$REPO/deployments/$id/statuses?per_page=1" --jq '.[0].state // ""')" == success ]]; then
+              last="$(gh api "repos/$REPO/deployments/$id" --jq .sha)"
+              break
+            fi
+          done
+
+          if [[ "$EVENT" == workflow_dispatch ]]; then
+            deploy=true reason="manual run"
+          elif [[ -z "$last" ]] || ! git cat-file -e "$last^{commit}" 2>/dev/null; then
+            deploy=true reason="no previous successful deployment found"
+          elif git diff --quiet "$last" HEAD -- "${paths[@]}"; then
+            deploy=false reason="no change to ${paths[*]} since ${last:0:7}"
+          else
+            deploy=true reason="changes since ${last:0:7}"
+          fi
+
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Deploy: $deploy ($reason)"
+            if [[ "$deploy" == true && -n "$last" ]] && git cat-file -e "$last^{commit}" 2>/dev/null; then
+              echo '```'
+              git diff --stat "$last" HEAD -- "${paths[@]}"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Build, push and deploy
+    needs: changes
+    if: >-
+      needs.changes.outputs.deploy == 'true' &&
       vars.AZURE_CLIENT_ID_APP != '' && vars.ACR_LOGIN_SERVER != ''
     runs-on: ubuntu-latest
-    environment: prod-app # only main can deploy
+    environment: prod-app # approval; only main can deploy
     permissions:
       contents: read
       id-token: write
     env:
-      IMAGE: ${{ vars.ACR_LOGIN_SERVER }}/tasky:${{ github.sha }}
+      IMAGE: ${{ vars.ACR_LOGIN_SERVER }}/tasky:${{ needs.changes.outputs.image_tag }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -145,11 +212,26 @@ jobs:
       - name: Log in to ACR
         run: az acr login --name "${{ vars.ACR_NAME }}"
 
+      # Same source, same tag: if ACR already has it, reuse it (a
+      # manifest-only change). Tags are never overwritten.
+      - name: Check for an existing image
+        id: image
+        run: |
+          if az acr manifest show-metadata --registry "${{ vars.ACR_NAME }}" \
+              --name "tasky:${{ needs.changes.outputs.image_tag }}" --only-show-errors >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Image already in ACR: reusing it, no build" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build
+        if: steps.image.outputs.exists != 'true'
         run: docker build --build-arg REGISTRY="${{ vars.ACR_LOGIN_SERVER }}" -t "$IMAGE" app
 
       # R16: the image must contain wizexercise.txt with my name
       - name: Check wizexercise.txt
+        if: steps.image.outputs.exists != 'true'
         run: docker run --rm --entrypoint cat "$IMAGE" /app/wizexercise.txt | grep -qx "Michael Thomas"
 
       - name: Install Trivy
@@ -164,7 +246,9 @@ jobs:
           tar -xzf "$tarball" trivy
           sudo install -m 0755 trivy /usr/local/bin/trivy
 
-      # Same report and gate as the PR: nothing is pushed unless the gate passes
+      # Same report and gate as the PR, on a new build or on the reused image
+      # (pulled from ACR): vulnerabilities found since it was pushed still
+      # stop the deploy. Nothing is pushed unless the gate passes.
       - name: Trivy image report (all severities)
         run: trivy image --exit-code 0 "$IMAGE"
 
@@ -172,6 +256,7 @@ jobs:
         run: trivy image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --skip-db-update "$IMAGE"
 
       - name: Push
+        if: steps.image.outputs.exists != 'true'
         run: docker push "$IMAGE"
 
       - name: Render manifests
