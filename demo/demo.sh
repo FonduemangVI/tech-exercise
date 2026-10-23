@@ -11,8 +11,8 @@
 # the kubeconfig), infra/ initialised locally for its outputs (see
 # docs/runbook.md, step 3), and the SSH key ~/.ssh/wiz-exercise.
 #
-# DRAFT: written before the lab existed. Steps marked "lab check" have not
-# been run against the live environment yet.
+# Needs the log-analytics CLI extension for the storage log query; the
+# pre-flight checks for it.
 #
 # Nothing here prints a secret value. Secrets are shown by name or key only,
 # because the screen is shared.
@@ -78,10 +78,22 @@ try_load_env() {
 
 # ---------- helpers for steps that need more than one line ----------
 
-# Every image running in the cluster, one per line
+# Namespaces the allowed-images policy excludes (infra/policy.tf). AKS's own
+# add-ons run there, from mcr.microsoft.com.
+EXCLUDED_NS='["kube-system","gatekeeper-system","azure-arc","azure-extensions-usage-system","aks-command"]'
+
+# Every image running outside the excluded namespaces, one per line, then
+# a count of the AKS add-on images inside them
 images() {
-  kubectl get pods -A -o jsonpath='{range .items[*]}{range .spec.initContainers[*]}{.image}{"\n"}{end}{range .spec.containers[*]}{.image}{"\n"}{end}{end}' |
-    sort -u
+  local pods
+  pods="$(kubectl get pods -A -o json)"
+  jq -r --argjson ex "$EXCLUDED_NS" '.items[]
+    | select(.metadata.namespace as $n | $ex | index($n) | not)
+    | ((.spec.initContainers // []) + .spec.containers)[] | .image' <<<"$pods" | sort -u
+  $LIST_ONLY || jq -r --argjson ex "$EXCLUDED_NS" '[.items[]
+    | select(.metadata.namespace as $n | $ex | index($n))
+    | ((.spec.initContainers // []) + .spec.containers)[] | .image] | unique | length
+    | "(plus \(.) AKS add-on images from mcr.microsoft.com in namespaces the policy excludes)"' <<<"$pods" >&2
 }
 
 # Env vars of the tasky container and where they come from (names only)
@@ -95,8 +107,7 @@ env_sources() {
 # R20: the todos are in MongoDB. SSH in (W4 makes this possible from
 # anywhere), read the admin URI from Key Vault with the VM's identity, and
 # query. The URI goes through the environment, never the command line, and
-# is not printed. Lab check: the kv.sh path and that mongosh's connect()
-# accepts the URI as given.
+# is not printed.
 mongo_todos() {
   ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new "azureuser@$MONGO_IP" 'sudo bash -s' <<'REMOTE'
 set -euo pipefail
@@ -122,21 +133,32 @@ vm_roles() {
     --query '[].{role:roleDefinitionName, scope:scope}' -o table
 }
 
-# R26 audit: who created role assignments (W3 included). Lab check:
-# az monitor log-analytics query output; fallback is the Logs tab.
+# R26 audit: who created the W3 grant (Contributor on the subscription for
+# the VM identity). Reads the Azure Activity Log itself (kept 90 days), not
+# the copy in Log Analytics: the export only holds events from when its
+# diagnostic setting was created, and the rebuild granted W3 before that.
+# The caller is an object ID; it is shown as the identity's name.
 audit_role_assignments() {
-  local workspace
-  workspace="$(az monitor log-analytics workspace show --ids "$LAW_ID" --query customerId -o tsv)"
-  az monitor log-analytics query -w "$workspace" -o table --analytics-query '
-    AzureActivity
-    | where OperationNameValue =~ "Microsoft.Authorization/roleAssignments/write"
-    | where ActivityStatusValue =~ "Success"
-    | project TimeGenerated, Caller, Scope = tostring(Properties_d.entity)
-    | order by TimeGenerated desc
-    | take 10'
+  local principal sub name created start
+  principal="$(az vm list -g "$RG" --query '[0].identity.principalId' -o tsv)"
+  sub="$(az account show --query id -o tsv)"
+  read -r name created < <(az role assignment list --assignee "$principal" --role Contributor \
+    --scope "/subscriptions/$sub" --query '[0].{n:name, c:createdOn}' -o tsv)
+  created="${created%%.*}"
+  start="$(date -u -d "${created/T/ } UTC" +%s)"
+  az monitor activity-log list --max-events 5000 \
+    --start-time "$(date -u -d "@$((start - 300))" +%FT%TZ)" \
+    --end-time "$(date -u -d "@$((start + 300))" +%FT%TZ)" \
+    --query "[?contains(resourceId, '$name')].{t:eventTimestamp, s:status.value, c:caller}" -o tsv |
+    while IFS=$'\t' read -r t s c; do
+      printf '%s  %-9s  Contributor on the subscription, created by %s\n' "${t%%.*}" "$s" \
+        "$(az identity list --query "[?principalId=='$c'].name | [0]" -o tsv)"
+    done
 }
 
-# R28 detective: the anonymous reads from backup_list() in Demo 1
+# R28 detective: the anonymous reads from backup_list() in Demo 1. Storage
+# logs reach Log Analytics a few minutes late, so a listing from a minute
+# ago may not show yet; earlier ones will.
 anonymous_reads() {
   local workspace
   workspace="$(az monitor log-analytics workspace show --ids "$LAW_ID" --query customerId -o tsv)"
@@ -159,6 +181,11 @@ check() {
 
   if az account show -o none 2>/dev/null; then pass "Azure CLI logged in"; else fail "az login"; fi
   if gh auth status >/dev/null 2>&1; then pass "gh logged in"; else fail "gh auth login"; fi
+  if az extension show --name log-analytics -o none 2>/dev/null; then
+    pass "az log-analytics extension"
+  else
+    fail "az extension add --name log-analytics --allow-preview true"
+  fi
   if ! try_load_env; then
     fail "repo variables or Terraform outputs missing (runbook step 3)"
     exit 1
@@ -183,11 +210,13 @@ check() {
   fi
   # Left behind if a rehearsal ran the policy test while still in Audit
   kubectl delete pod policy-test -n default --ignore-not-found >/dev/null
-  if [[ "$(images | grep -cv "^${ACR_LOGIN_SERVER}/" || true)" -eq 0 ]]; then
-    pass "every running image is from ACR"
+  local outside
+  outside="$(images 2>/dev/null | grep -v "^${ACR_LOGIN_SERVER}/" || true)"
+  if [[ -z "$outside" ]]; then
+    pass "every image outside the excluded namespaces is from ACR"
   else
-    printf '%sNOTE%s  images outside ACR (fine only in excluded namespaces):\n' "$DIM" "$RESET"
-    images | grep -v "^${ACR_LOGIN_SERVER}/" | sed 's/^/        /'
+    fail "images not from ACR (blocked on the next restart):"
+    while read -r image; do printf '        %s\n' "$image"; done <<<"$outside"
   fi
 
   if $ok; then
@@ -225,11 +254,11 @@ demo1() {
   # Secret synced from Key Vault (names only, no values)
   step 'env_sources   # deployment env vars: names and secret keys, no values'
 
-  # R20: the todo just added is in MongoDB on the VM (lab check)
+  # R20: the todo just added is in MongoDB on the VM
   step 'mongo_todos   # SSH to the VM, admin URI from Key Vault, count the todos'
 
   # ACR is the only image source
-  step 'images   # every image running in the cluster'
+  step 'images   # every image outside the namespaces the policy excludes'
 
   # R12, W6: dated backups, listed without any credentials. This also
   # triggers the alert shown in Demo 2.
@@ -242,7 +271,7 @@ demo2() {
   title "Demo 2: weaknesses and controls"
 
   # W5: the app's service account can do anything in the cluster
-  step 'kubectl auth can-i --list --as=system:serviceaccount:tasky:tasky-sa | head -n 5'
+  step 'kubectl auth can-i --list --as=system:serviceaccount:tasky:tasky-sa 2>/dev/null | sed -n 1,5p'
   step kubectl auth can-i get secrets --all-namespaces --as=system:serviceaccount:tasky:tasky-sa
   # ...including the Secret holding the Mongo URI (keys only)
   step "kubectl -n tasky get secret tasky-secrets -o jsonpath='{.data}' | jq -r 'keys[]'"
@@ -250,15 +279,15 @@ demo2() {
   # W3: the VM identity is Contributor on the whole subscription
   step 'vm_roles   # role assignments of the VM managed identity'
 
-  # Audit (R26): every role assignment is attributable (lab check)
-  step 'audit_role_assignments   # Activity Log in Log Analytics: who created role assignments'
+  # Audit (R26): every role assignment is attributable
+  step 'audit_role_assignments   # Activity Log: who granted the VM identity Contributor, and when'
 
   # Preventative (R27): only ACR images may run. Run in "default": tasky's
   # Pod Security "restricted" label would reject this pod first and hide
   # the policy.
   step kubectl run policy-test --image=docker.io/library/nginx -n default --restart=Never
 
-  # Detective (R28): the anonymous listing from Demo 1 (lab check)
+  # Detective (R28): the anonymous listing from Demo 1
   step 'anonymous_reads   # storage logs: the anonymous listing from Demo 1'
   say "Portal: Monitor > Alerts, the W6 alert has fired"
 
