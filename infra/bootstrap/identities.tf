@@ -51,6 +51,17 @@ resource "azurerm_federated_identity_credential" "github" {
   subject                   = each.value.subject
 }
 
+# id-gh-pr also trusts main without an environment, so infra.yml can plan
+# after a merge with read-only rights. The plan is shown for review before
+# Apply, which needs approval and runs as id-gh-infra.
+resource "azurerm_federated_identity_credential" "github_pr_main" {
+  name                      = "github-pr-main"
+  user_assigned_identity_id = azurerm_user_assigned_identity.github["pr"].id
+  audience                  = local.github_audience
+  issuer                    = local.github_issuer
+  subject                   = "${local.github_repo}:ref:refs/heads/main"
+}
+
 # ---------- id-gh-infra: applies the main configuration ----------
 
 resource "azurerm_role_assignment" "infra_contributor" {

@@ -86,16 +86,24 @@ jobs:
       - name: Trivy IaC gate (HIGH and CRITICAL)
         run: trivy config --exit-code 1 --severity HIGH,CRITICAL infra
 
+  # Read-only plan (id-gh-pr, Reader) on PRs and again on main after merge,
+  # so the plan that Apply will carry out can be reviewed before approving
+  # it. Skipped until the bootstrap has set the repo variables. Fork PRs
+  # cannot request an OIDC token, so only branches in this repo run a plan.
   plan:
     name: Plan
     needs: static
-    # Skipped until the bootstrap has set the repo variables. Fork PRs cannot
-    # request an OIDC token, so only branches in this repo run a plan.
     if: >-
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      vars.AZURE_CLIENT_ID_PR != ''
+      vars.AZURE_CLIENT_ID_PR != '' &&
+      (
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.head.repo.full_name == github.repository) ||
+        github.ref == 'refs/heads/main'
+      )
     runs-on: ubuntu-latest
+    outputs:
+      changes: ${{ steps.plan.outputs.changes }}
+      fingerprint: ${{ steps.plan.outputs.fingerprint }}
     permissions:
       contents: read
       id-token: write
@@ -138,10 +146,17 @@ jobs:
             -backend-config="storage_account_name=$TFSTATE_SA" \
             -backend-config="container_name=$TFSTATE_CONTAINER"
 
+      # Exit code 2 means changes. The fingerprint (a hash of what changes,
+      # not the values) lets Apply check it carries out this same plan.
       - name: Terraform plan
+        id: plan
         run: |
           set -euo pipefail
-          terraform plan -lock-timeout=5m -out=tfplan
+          code=0
+          terraform plan -lock-timeout=5m -detailed-exitcode -out=tfplan || code=$?
+          [[ $code -eq 0 || $code -eq 2 ]] || exit "$code"
+          echo "changes=$([[ $code -eq 2 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$(../scripts/plan-fingerprint.sh tfplan)" >> "$GITHUB_OUTPUT"
           {
             echo "### Terraform plan"
             echo '```'
@@ -149,13 +164,17 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # Runs only when the main plan has changes, after approval in prod-infra.
+  # It plans again as id-gh-infra and stops if that plan differs from the
+  # one reviewed (state or code changed in between): re-run the workflow.
   apply:
     name: Apply
-    needs: static
+    needs: [static, plan]
     if: >-
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
       github.ref == 'refs/heads/main' &&
-      vars.AZURE_CLIENT_ID_INFRA != ''
+      vars.AZURE_CLIENT_ID_INFRA != '' &&
+      needs.plan.outputs.changes == 'true'
     runs-on: ubuntu-latest
     environment: prod-infra # required reviewer; only main can deploy
     permissions:
@@ -202,6 +221,18 @@ jobs:
 
       - name: Terraform plan
         run: terraform plan -lock-timeout=5m -out=tfplan
+
+      - name: Check the plan matches the reviewed one
+        env:
+          REVIEWED: ${{ needs.plan.outputs.fingerprint }}
+        run: |
+          set -euo pipefail
+          current="$(../scripts/plan-fingerprint.sh tfplan)"
+          if [[ "$current" != "$REVIEWED" ]]; then
+            echo "::error::The plan changed since the Plan job. Review the new plan and re-run the workflow."
+            terraform show -no-color tfplan
+            exit 1
+          fi
 
       - name: Terraform apply
         run: terraform apply -lock-timeout=5m tfplan
