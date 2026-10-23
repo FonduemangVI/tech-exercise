@@ -23,7 +23,7 @@ env:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
   TERRAFORM_VERSION: "1.16.6"
-  TRIVY_VERSION: "0.76.0"
+  TRIVY_VERSION: "0.76.1"
 
 jobs:
   static:

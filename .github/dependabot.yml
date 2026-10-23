@@ -20,3 +20,8 @@ updates:
   # Not docker: the Dockerfile's FROM lines are build arguments (base images
   # come from ACR), which Dependabot cannot resolve. Base image tags are
   # bumped in scripts/import-images.sh and app/Dockerfile together.
+  #
+  # Not tool versions either: TRIVY_VERSION and TERRAFORM_VERSION in the
+  # workflows are plain env values, which Dependabot does not read. Bump
+  # them by hand (Trivy prints a notice when a newer release exists) and
+  # keep both workflows on the same Trivy version.
