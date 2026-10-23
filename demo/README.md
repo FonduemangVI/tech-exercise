@@ -7,25 +7,27 @@
 ## Before the call
 
 1. `demo/demo.sh check`, about 20 minutes before the call: Azure and GitHub logins, the `log-analytics` CLI extension, Terraform outputs, API server reachable from my IP, app answers on HTTPS, SSH to the VM, every image outside the excluded namespaces from ACR. Fix any FAIL first (a changed public IP is the likely one: see `docs/runbook.md`, day to day). Then run `backup_list` once (or `demo/demo.sh 1` up to that step), so a W6 alert from that morning is already showing in Demo 2: storage logs and the alert lag the listing by up to 10 minutes.
-2. Browser tabs open, in this order: app, GitHub Actions (latest `app.yml` run), Log Analytics Logs, Monitor > Alerts, Defender for Cloud recommendations.
+2. Browser tabs open, in this order: app; GitHub (repo, a merged PR, the latest `infra.yml` and `app.yml` runs on `main`, the gate-fail PR); Monitor > Alerts; Defender for Cloud recommendations (or Policy > Compliance). The app URL ready to paste into the chat.
 3. Terminal: large font, dark theme, the window shared rather than the whole screen.
 4. Screenshots of every step in the hidden backup section of the slides, in case the environment or the network fails.
 
-## Run sheet (45 minutes)
+## Run sheet (60 minutes)
+
+Format from the hiring manager: a full hour, 10 to 15 minutes of slides, then the demo. The lead panellist usually pauses with 5 minutes to go. Weighting is 60 to 70% technical, 30 to 40% presentation. Most time goes on DevSecOps and CI/CD: why each check matters, and how a change moves through the pipelines. Pitch high level first, then go deep. Check in with the panel after every segment.
 
 | Min | Segment | What |
 |---|---|---|
-| 0-3 | Slides 1-2 | Who I am; the diagram |
-| 3-8 | Slides 3-4 | How I built it; challenges and what I changed |
-| 8-18 | **Demo 1** | `demo/demo.sh 1`, then the GitHub Actions tab |
-| 18-25 | Slides 5-6 | Six weaknesses and their business impact; how they chain |
-| 25-33 | **Demo 2** | `demo/demo.sh 2`, then the alert and Defender tabs |
-| 33-37 | Slides 7-8 | Controls; what I would fix first and why |
-| 37-45 | Questions | |
+| 0-2 | Opening | Who I am. Check in: "Anything you want me to spend more time on?" |
+| 2-14 | Slides (about 6) | The diagram; how I built it and how I used AI; the pipeline design; six weaknesses and how they chain; controls and what I would fix first |
+| 14-22 | **Demo 1** | `demo/demo.sh 1`: it is built and it works. Check in |
+| 22-37 | **Pipeline walkthrough** | GitHub, not the terminal: a change from PR to production, and the gate failing on a bad change (below). Check in |
+| 37-47 | **Demo 2** | `demo/demo.sh 2`: weaknesses, then the control for each; alert and Defender tabs. Check in |
+| 47-50 | Close | What I would fix first and why; what Wiz adds |
+| 50-60 | Questions | Pause at 55 if asked |
 
-**Cut list if running late, in order:** GitHub Actions tab becomes a screenshot; skip `audit_role_assignments` (say what it shows); alert as a screenshot; Defender as a screenshot.
+**Cut list if running late, in order:** Defender as a screenshot; alert as a screenshot; skip `audit_role_assignments` (say what it shows); in the pipeline walkthrough, show the finished gate-fail run instead of pushing live. Never cut the pipeline walkthrough itself.
 
-## Demo 1: it is built and it works (8-18)
+## Demo 1: it is built and it works (14-22)
 
 | Step | Proves | Say |
 |---|---|---|
@@ -39,9 +41,26 @@
 | `mongo_todos` | R6, R20 | The todo I just added is in MongoDB on the VM. Note I could SSH in from here: that is W4, coming up. |
 | `images` | | Every image comes from ACR. The count at the end is AKS's own add-ons, from Microsoft's registry, in the namespaces the policy excludes. The policy in Demo 2 enforces this. |
 | `backup_list` | R12, W6 | Dated daily backups, listed with no credentials. Anyone on the internet can do this. (This also triggers the alert in Demo 2.) |
-| GitHub Actions tab | R22-R25 | Two pipelines, OIDC with no stored secrets, Trivy gates on IaC, manifests and the image. |
 
-## Demo 2: weaknesses and controls (25-33)
+## Pipeline walkthrough (22-37)
+
+Use GitHub in the browser: tabs open on the repo, a merged PR, its runs, and the gate-fail PR.
+
+**Before the call:** a draft PR from branch `demo/gate-fail`, never merged, that sets `privileged: true` and `allowPrivilegeEscalation: true` in the tasky container's `securityContext` (`kubernetes/apps/tasky/tasky/app/deployment.yaml`). Checked locally: the manifest gate fails with KSV-0017 (HIGH). Push it about 30 minutes before so a failed run exists; push one more empty commit live (`git commit --allow-empty`) if there is time to watch it run (about a minute).
+
+| Step | Show | Say |
+|---|---|---|
+| 1 | The two workflows side by side: `infra.yml` (static, plan, apply) and `app.yml` (manifests, build, deploy) | Two pipelines because infrastructure and app change at different rates and need different rights. Same shape: check, then plan or build, then a gated deploy |
+| 2 | A merged PR's checks | Every PR runs the same checks before review: Terraform fmt and validate, ShellCheck, Trivy on the IaC, the manifests and the image, and the actions lockfile. Required checks in the ruleset: nothing merges red |
+| 3 | Trivy report then gate | Report shows every finding, gate fails on HIGH and CRITICAL. Deliberate weaknesses are suppressed only inline, next to the resource, naming the issue ID; accepted exceptions carry an expiry date, after which the pipeline fails again |
+| 4 | Gate-fail PR | A privileged container fails the manifest gate, and Build never runs: the cheapest place to stop it. Nothing reaches the registry |
+| 5 | OIDC and the three identities | No stored cloud secret anywhere. PRs get a read-only identity; only `main`, through an approved environment, gets one that can change Azure. The infra identity can only grant an allow-list of roles |
+| 6 | An infra run on `main`: Plan, approval, Apply | Plan runs after merge with read-only rights and is what I approve. Apply plans again and refuses unless its fingerprint matches the reviewed plan. No changes, no approval asked |
+| 7 | An app run on `main`: check for changes, then build, scan, push, deploy | A read-only job compares the commit with the last successful deployment: a tool bump deploys nothing and asks for no approval. The image tag is the hash of the app source, so the same code is never rebuilt or restarted, and a manifest-only change reuses the image (rescanned first: new CVEs still block it). Same gate before push; deploy runs through `command invoke` as an identity limited to the `tasky` namespace |
+| 8 | Supply chain | Actions locked to verified commits; Trivy downloaded with a checksum; base images only from ACR; Dependabot PRs go through the same checks (and what it misses: tool versions) |
+| 9 | How it was built | Written with AI help and reviewed line by line; the build log shows where the first version was wrong (severity filter hiding findings, the Docker Hub pull) and the pipeline or a lint caught it |
+
+## Demo 2: weaknesses and controls (37-47)
 
 | Step | Shows | Say |
 |---|---|---|
