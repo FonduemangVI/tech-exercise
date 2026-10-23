@@ -33,6 +33,17 @@ StorageBlobLogs
 ```kql
 AZKVAuditLogs
 | where OperationName in ("SecretGet", "SecretSet")
-| project TimeGenerated, OperationName, ResultSignature, CallerIpAddress, Caller = tostring(Identity.claim.oid), Secret = RequestUri
+| extend Secret = extract(@"/secrets/([^/?]+)", 1, RequestUri), Caller = tostring(Identity.claim.oid)
+| project TimeGenerated, OperationName, ResultSignature, CallerIpAddress, Caller, Secret
 | order by TimeGenerated desc
+```
+
+Summary, one row per identity and secret. The secret name is taken from the request URI, which otherwise splits one secret across rows by port (`:8443`, `:8444`, none). `Caller` is an object ID: resolve it with `az ad sp show --id <oid> --query displayName`. Checked on 23 Oct 2026: `id-tasky` (the Secrets Store CSI driver, rotation on) reads `mongo-app-uri` and `tasky-jwt-secret` every 2 minutes; the Mongo VM's identity reads `mongo-admin-uri` for the backup. Nothing else reads any secret.
+
+```kql
+AZKVAuditLogs
+| where OperationName in ("SecretGet", "SecretSet")
+| extend Secret = extract(@"/secrets/([^/?]+)", 1, RequestUri), Caller = tostring(Identity.claim.oid)
+| summarize Reads = count(), Last = max(TimeGenerated) by OperationName, Caller, Secret
+| order by Secret asc
 ```
