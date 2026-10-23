@@ -49,7 +49,7 @@ The script makes me the required reviewer on `prod-infra` and restricts both env
 
 ## 2. Infrastructure (pipeline)
 
-**Review a plan first.** The `prod-infra` approval is asked for before the Apply job starts, so approving it never shows a plan. The read-only Plan job runs on pull requests only: open a PR (any change, e.g. a doc fix) and read the plan in the Plan job's summary. On an empty state it should only create resources; stop if it destroys or changes anything. It also proves `id-gh-pr` (Reader) can plan.
+**Review a plan first.** On `main`, the read-only Plan job runs before Apply: read its summary, then approve `prod-infra`. Apply plans again and stops if that plan differs from the reviewed one (re-run the workflow); with no changes, Apply is skipped and no approval is asked for. For the very first apply, also open a PR (any change, e.g. a doc fix) and read the plan in the Plan job's summary. On an empty state it should only create resources; stop if it destroys or changes anything. It also proves `id-gh-pr` (Reader) can plan.
 
 Then merge the PR (if it touches `infra/**` the push starts Apply), or start Apply by hand:
 
