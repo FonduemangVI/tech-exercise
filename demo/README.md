@@ -2,12 +2,12 @@
 
 `demo.sh` runs every command shown in the presentation. Each step prints the command, waits for Enter, then runs it. Nothing is typed live.
 
-**Status:** run end to end against the lab on 22 Oct 2026. Time each demo in rehearsal 1.
+**Status:** run end to end against the lab on 22 Oct 2026. Defender section updated 24 Oct 2026 from live results. Time each demo in rehearsal 1.
 
 ## Before the call
 
 1. `demo/demo.sh check`, about 20 minutes before the call: Azure and GitHub logins, the `log-analytics` CLI extension, Terraform outputs, API server reachable from my IP, app answers on HTTPS, SSH to the VM, every image outside the excluded namespaces from ACR. Fix any FAIL first (a changed public IP is the likely one: see `docs/runbook.md`, day to day). Then run `backup_list` once (or `demo/demo.sh 1` up to that step), so a W6 alert from that morning is already showing in Demo 2: storage logs and the alert lag the listing by up to 10 minutes.
-2. Browser tabs open, in this order: app; GitHub (repo, a merged PR, the latest `infra.yml` and `app.yml` runs on `main`, the gate-fail PR); Monitor > Alerts; Defender for Cloud recommendations (or Policy > Compliance). The app URL ready to paste into the chat.
+2. Browser tabs open, in this order: app; GitHub (repo, a merged PR, the latest `infra.yml` and `app.yml` runs on `main`, the gate-fail PR); Monitor > Alerts; Defender for Cloud > Recommendations; Policy > Compliance > Microsoft cloud security benchmark (filter: Non-compliant). The app URL ready to paste into the chat.
 3. Terminal: large font, dark theme, the window shared rather than the whole screen.
 4. Screenshots of every step in the hidden backup section of the slides, in case the environment or the network fails.
 
@@ -18,7 +18,7 @@ Format from the hiring manager: a full hour, 10 to 15 minutes of slides, then th
 | Min | Segment | What |
 |---|---|---|
 | 0-2 | Opening | Who I am. Check in: "Anything you want me to spend more time on?" |
-| 2-14 | Slides (about 6) | The diagram; how I built it and how I used AI; the pipeline design; six weaknesses and how they chain; controls and what I would fix first |
+| 2-14 | Slides (10) | Overview and agenda; the diagram; business benefits and risks; how it was built (pipelines); challenges; security outcomes; Wiz value; what I would fix first |
 | 14-22 | **Demo 1** | `demo/demo.sh 1`: it is built and it works. Check in |
 | 22-37 | **Pipeline walkthrough** | GitHub, not the terminal: a change from PR to production, and the gate failing on a bad change (below). Check in |
 | 37-47 | **Demo 2** | `demo/demo.sh 2`: weaknesses, then the control for each; alert and Defender tabs. Check in |
@@ -26,6 +26,16 @@ Format from the hiring manager: a full hour, 10 to 15 minutes of slides, then th
 | 50-60 | Questions | Pause at 55 if asked |
 
 **Cut list if running late, in order:** Defender as a screenshot; alert as a screenshot; skip `audit_role_assignments` (say what it shows); in the pipeline walkthrough, show the finished gate-fail run instead of pushing live. Never cut the pipeline walkthrough itself.
+
+**Brief coverage: Cloud Native Security.** Native Azure tooling, demonstrated with its impact:
+
+| Brief requirement | Tool | Where in the demo | Impact to say |
+|---|---|---|---|
+| Control plane audit logging (must) | Activity Log, exported to Log Analytics with AKS, Key Vault and storage logs | Demo 2, `audit_role_assignments` | Every change names the identity that made it: the W3 grant traces to the infra pipeline and a reviewed PR |
+| At least one preventative control (must) | Azure Policy for Kubernetes (Gatekeeper), effect Deny | Demo 2, `kubectl run ... docker.io/library/nginx` | An image from outside my registry cannot run, by mistake or on purpose |
+| At least one detective control (should) | Azure Monitor log alert on anonymous backup reads; Defender for Cloud posture findings | Demo 2, `anonymous_reads`, Alerts tab, Defender and Policy tabs | Public data access is known within minutes, with the caller's IP; misconfigurations are found without anyone looking for them |
+| Demonstrate the tools and their impact (must) | All of the above | Demo 2 | Shown live, each against the weakness it covers |
+| Security in the CI/CD phases (optional) | Trivy report and gate (IaC, manifests, image), daily rescan, OIDC, approvals | Pipeline walkthrough | Bad changes stop before they merge or before anything is pushed |
 
 ## Demo 1: it is built and it works (14-22)
 
@@ -70,17 +80,21 @@ Use GitHub in the browser: tabs open on the repo, a merged PR, its runs, and the
 | `audit_role_assignments` | R26, audit | Every change is attributable: the infra pipeline identity created the W3 grant, from a reviewed PR, at this time. It reads the Activity Log itself: the Log Analytics copy only starts when its diagnostic setting was created, and the rebuild granted W3 just before that (a gap worth admitting if asked). |
 | `kubectl run ... docker.io/library/nginx` | R27, preventative | Denied: only images from my ACR may run. It does not fix W5; admission control and RBAC are separate layers. |
 | `anonymous_reads`, then Alerts tab | R28, detective | The anonymous listings show up in the storage logs with the caller's IP, and the alert has fired. The brief needs the bucket public, so the control is knowing within minutes. The listing from Demo 1 may still be in transit (a few minutes); the morning's one will be there. Each listing fires two alerts: the 10-minute window overlaps the 5-minute schedule so late logs are not missed. |
-| Defender tab | | Separate findings for the VM, storage and the cluster. Nothing links them into the chains I just showed: that is the gap a graph-based tool like Wiz closes. |
+| Defender tab, then Policy tab | Detective (native) | The brief asks for native tooling: Defender for Cloud (free tier) finds the misconfigurations on its own. Recommendations shows the public storage (W6) and missing updates on the VM (W1); the benchmark compliance view adds SSH open (W4) and the automounted service account token (W5). Each finding is per resource; joining them into the chains above is the next step. |
 
-**Defender (free tier) against the weaknesses.** From the Microsoft cloud security benchmark policy results on 22 Oct 2026 (Defender's Recommendations page fills from these, up to 24 hours after resources are created; if it is still empty, show Policy > Compliance > Microsoft cloud security benchmark instead):
+**Defender for Cloud (free tier) against the weaknesses.** Live results on 24 Oct 2026. Two views: the Recommendations page, and Policy > Compliance for the Microsoft cloud security benchmark initiative (where some checks appear that Recommendations leaves out without a paid plan). Show Recommendations first, then the compliance view filtered to `wiz-ex-eus-mongo-vm` and `wiz-ex-eus-aks`.
 
-| Weakness | Flagged? | Finding |
+| Weakness | Recommendations page | Benchmark compliance view |
 |---|---|---|
-| W1 Ubuntu 20.04 | Indirectly | "System updates should be installed", "Linux machines should meet the Azure compute security baseline"; nothing says the OS is end of life |
-| W2 MongoDB 6.0 | No | No agent or paid plan to inventory software |
-| W3 VM identity Contributor on the subscription | No | Nothing on over-privileged managed identities |
-| W4 SSH open to the internet | Yes | "Management ports should be closed", "...protected with just-in-time network access" |
-| W5 cluster-admin binding | Partly | "Kubernetes clusters should disable automounting API credentials"; nothing on the binding itself |
-| W6 public backups | Yes | "Storage account public access should be disallowed" |
+| W1 Ubuntu 20.04 | Indirectly: "Machines should be configured to periodically check for missing system updates" | Also "Linux machines should meet the Azure compute security baseline"; nothing says the OS is end of life |
+| W2 MongoDB 6.0 | No | No: no agent or paid plan inventories software |
+| W3 VM identity Contributor on the subscription | No | No: nothing on over-privileged managed identities |
+| W4 SSH open to the internet | No (needs a paid Servers plan) | Yes: "Management ports should be closed", "...protected with just-in-time network access" |
+| W5 cluster-admin binding | No | Partly: "Kubernetes clusters should disable automounting API credentials"; nothing on the binding itself |
+| W6 public backups | Yes: "Storage account public access should be disallowed" | Yes |
 
-Say: two of six are caught directly, each one on its own. None of them is linked to the others, so the chains (W4 to W1 to W3, app to W5 to secrets) are invisible. Some VM findings say the opposite of what was built: "Authentication to Linux machines should require SSH keys" is non-compliant although password login is off, because that check needs the Guest Configuration agent, which is not installed. Compliance results need reading, not counting.
+Say: the native tooling finds three of the six directly (W4, W6, and W5 in part), each against one resource. Also worth showing, because a finding list needs reading, not counting:
+- "Linux virtual machines should enable Azure Disk Encryption or EncryptionAtHost" fails although encryption at host is on, and "Authentication to Linux machines should require SSH keys" fails although password login is off. Both need the Guest Configuration agent, which is not installed.
+- Most of the rest is network hardening (private link, firewall) and paid plans not enabled, which the lab does not allow.
+
+Check the night before: the results change as resources change, and the panel may read any line on screen.
