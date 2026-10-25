@@ -9,6 +9,12 @@ resource "azurerm_log_analytics_workspace" "main" {
   retention_in_days = var.log_retention_days
   daily_quota_gb    = var.law_daily_quota_gb
 
+  # Entra ID only. The shared keys still sit in state (and so in any plan
+  # file), but with local auth off they cannot write data into the
+  # workspace, so nobody holding them can forge audit records. Nothing here
+  # uses them: diagnostic settings, queries and alerts all go through Entra ID.
+  local_authentication_enabled = false
+
   tags = local.tags
 }
 
