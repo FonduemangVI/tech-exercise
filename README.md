@@ -26,7 +26,7 @@ A two-tier web application on Azure:
 | `app/` | tasky source, Dockerfile and `wizexercise.txt` |
 | `scripts/` | Bootstrap and helper scripts: GitHub variables, image import into ACR, app variables, Flux bootstrap |
 | `demo/` | Scripted demo steps for the presentation |
-| `docs/` | Runbook (deployment order), issue register and demo queries |
+| `docs/` | Runbook (deployment order), issue register, build log, architecture diagram and demo queries |
 | `.github/workflows/` | `infra.yml` (IaC), `app.yml` (build, scan, push, deploy), `actions-lock.yml` (lockfile check) |
 
 ## Pipelines
