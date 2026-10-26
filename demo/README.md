@@ -98,3 +98,5 @@ Say: the native tooling finds three of the six directly (W4, W6, and W5 in part)
 - Most of the rest is network hardening (private link, firewall) and paid plans not enabled, which the lab does not allow.
 
 Check the night before: the results change as resources change, and the panel may read any line on screen.
+
+Demo

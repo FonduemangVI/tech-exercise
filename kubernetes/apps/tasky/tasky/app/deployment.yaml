@@ -56,7 +56,8 @@ spec:
             limits:
               memory: 256Mi
           securityContext:
-            allowPrivilegeEscalation: false
+            privileged: true # DEMO ONLY: must fail the manifest gate. Never merge.
+            allowPrivilegeEscalation: true
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
